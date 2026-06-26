@@ -103,7 +103,12 @@ export async function pdfPageCount(input: File | ArrayBuffer): Promise<number> {
   return doc.numPages;
 }
 
-export async function pdfToImageDataUrls(input: File | ArrayBuffer, scale = 1.8): Promise<string[]> {
+export async function pdfToImageDataUrls(
+  input: File | ArrayBuffer,
+  scale = 1.8,
+  type: "image/png" | "image/jpeg" = "image/png",
+  quality = 0.85,
+): Promise<string[]> {
   const pdfjs = await getPdfjs();
   const buf = await toArrayBuffer(input);
   const doc = await pdfjs.getDocument({ data: buf.slice(0) }).promise;
@@ -116,7 +121,7 @@ export async function pdfToImageDataUrls(input: File | ArrayBuffer, scale = 1.8)
     canvas.height = viewport.height;
     const ctx = canvas.getContext("2d")!;
     await page.render({ canvasContext: ctx, viewport, canvas }).promise;
-    urls.push(canvas.toDataURL("image/png"));
+    urls.push(canvas.toDataURL(type, quality));
   }
   return urls;
 }

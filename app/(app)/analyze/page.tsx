@@ -38,6 +38,40 @@ import {
 const THRESHOLDS = [0, 300000, 500000, 1000000, 2000000, 3000000];
 const thLabel = (n: number) => (n === 0 ? "전체" : `${n / 10000}만`);
 
+const MAX_VISION_PAGES = 24;
+
+// 스캔본: Claude 비전으로 거래내역을 CSV로 추출(4페이지씩 배치, Vercel 요청 한계 대응).
+// AI 미설정(400)이면 null 반환 → 호출부에서 tesseract 폴백.
+async function extractViaVision(
+  images: string[],
+  source: StmtSource,
+  onMsg: (m: string) => void,
+): Promise<string | null> {
+  const header = source === "card" ? "승인일,가맹점명,이용내역,이용금액" : "날짜,거래상대방,적요,출금,입금";
+  const BATCH = 4;
+  const rows: string[] = [];
+  let aiOff = false;
+  for (let i = 0; i < images.length; i += BATCH) {
+    const chunk = images.slice(i, i + BATCH);
+    onMsg(`AI로 거래내역 추출 중… ${Math.min(i + BATCH, images.length)}/${images.length}페이지`);
+    try {
+      const res = await fetch("/api/ai/statement", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ images: chunk, source }),
+      });
+      const j = await res.json();
+      if (res.status === 400) { aiOff = true; break; }
+      if (res.ok && typeof j.rows === "string" && j.rows.trim()) rows.push(j.rows.trim());
+    } catch {
+      // 네트워크 오류 → 폴백
+      return null;
+    }
+  }
+  if (aiOff || !rows.length) return null;
+  return header + "\n" + rows.join("\n");
+}
+
 type ColorMode = "split" | "unified";
 
 export default function AnalyzePage() {
@@ -101,9 +135,20 @@ export default function AnalyzePage() {
       if (isPdf) {
         text = await extractText(file);
         if (text.replace(/\s/g, "").length < 20) {
-          setExtracting("스캔 PDF OCR 중… (수십 초 소요될 수 있어요)");
-          const imgs = await pdfToImageDataUrls(file, 2);
-          text = await ocrImages(imgs, (p, t) => setExtracting(`OCR ${p}/${t}페이지…`));
+          // 스캔본(이미지) PDF → 페이지를 이미지로 렌더 후 AI 비전 추출(실패 시 OCR 폴백)
+          setExtracting("스캔본 감지 — 페이지 렌더링 중…");
+          let imgs = await pdfToImageDataUrls(file, 1.7, "image/jpeg", 0.7);
+          if (imgs.length > MAX_VISION_PAGES) {
+            imgs = imgs.slice(0, MAX_VISION_PAGES);
+            setExtracting(`페이지가 많아 앞 ${MAX_VISION_PAGES}장만 처리합니다…`);
+          }
+          const aiCsv = await extractViaVision(imgs, source, (m) => setExtracting(m));
+          if (aiCsv && aiCsv.split("\n").length > 1) {
+            text = aiCsv;
+          } else {
+            setExtracting("AI 추출 불가 → 문자 인식(OCR) 중… (수십 초 소요)");
+            text = await ocrImages(imgs, (p, t) => setExtracting(`OCR ${p}/${t}페이지…`));
+          }
         }
         setPdfFiles((prev) => ({ ...prev, [source]: file }));
       } else {
