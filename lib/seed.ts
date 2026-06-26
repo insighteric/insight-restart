@@ -7,6 +7,7 @@ import type {
   Subscription,
   FeePlan,
   CaseLog,
+  CaseDocCheck,
 } from "./types";
 
 const today = new Date();
@@ -298,6 +299,16 @@ export const seedCaseLogs: CaseLog[] = [
   { id: "lg_2", caseId: "ca_1", author: "담당 사무장", body: "2회차 수임료 미납 — 의뢰인에게 납부 안내 문자 발송.", createdAt: iso(-2) },
   { id: "lg_3", caseId: "ca_2", author: "담당 사무장", body: "파산신청서 초안 작성 중. 사채(지인) 채권 다툼 있어 확인 필요.", createdAt: iso(-2) },
   { id: "lg_4", caseId: "ca_3", author: "담당 사무장", body: "1차 상담 완료. 프리랜서 소득 입증자료(계약서·세금신고) 준비 요청.", createdAt: iso(-8) },
+];
+
+// 서류 체크(데모) — ca_1 일부 진행
+export const seedDocChecks: CaseDocCheck[] = [
+  { id: "dc_1", caseId: "ca_1", docKey: "resident_copy", status: "done", receivedAt: iso(-30) },
+  { id: "dc_2", caseId: "ca_1", docKey: "income_cert", status: "done", receivedAt: iso(-28) },
+  { id: "dc_3", caseId: "ca_1", docKey: "payslip", status: "done", receivedAt: iso(-28) },
+  { id: "dc_4", caseId: "ca_1", docKey: "insurance_surrender", status: "requested", memo: "보정명령 항목 — 보험사 발급 요청함" },
+  { id: "dc_5", caseId: "ca_1", docKey: "fact_confirm", status: "todo", memo: "5백만원 출금 사용처 소명" },
+  { id: "dc_6", caseId: "ca_1", docKey: "car_reg", status: "done", receivedAt: iso(-27) },
 ];
 
 export const seedSubscription: Subscription = {

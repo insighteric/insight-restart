@@ -13,6 +13,7 @@ import type {
   Settings,
   FeePlan,
   CaseLog,
+  CaseDocCheck,
 } from "./types";
 import {
   seedCases,
@@ -23,6 +24,7 @@ import {
   seedSubscription,
   seedFeePlans,
   seedCaseLogs,
+  seedDocChecks,
 } from "./seed";
 import { DEFAULT_SETTINGS } from "./calc";
 
@@ -34,6 +36,7 @@ interface DB {
   events: ScheduleEvent[];
   feePlans: FeePlan[];
   caseLogs: CaseLog[];
+  docChecks: CaseDocCheck[];
   subscription: Subscription;
   settings: Settings;
 }
@@ -46,6 +49,7 @@ const initial: DB = {
   events: seedEvents,
   feePlans: seedFeePlans,
   caseLogs: seedCaseLogs,
+  docChecks: seedDocChecks,
   subscription: seedSubscription,
   settings: DEFAULT_SETTINGS,
 };
@@ -65,6 +69,8 @@ interface StoreApi extends DB {
   addCaseLog: (l: CaseLog) => void;
   updateCaseLog: (id: string, patch: Partial<CaseLog>) => void;
   removeCaseLog: (id: string) => void;
+  docChecksForCase: (caseId: string) => CaseDocCheck[];
+  setDocCheck: (caseId: string, docKey: string, patch: Partial<CaseDocCheck>) => void;
   addCorrection: (c: Correction) => void;
   updateCorrection: (id: string, patch: Partial<Correction>) => void;
   addDocument: (d: CaseDocument) => void;
@@ -162,6 +168,22 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     updateCaseLog: (id, patch) =>
       setDb((s) => ({ ...s, caseLogs: s.caseLogs.map((l) => (l.id === id ? { ...l, ...patch } : l)) })),
     removeCaseLog: (id) => setDb((s) => ({ ...s, caseLogs: s.caseLogs.filter((l) => l.id !== id) })),
+    docChecksForCase: (caseId) => db.docChecks.filter((d) => d.caseId === caseId),
+    setDocCheck: (caseId, docKey, patch) =>
+      setDb((s) => {
+        const existing = s.docChecks.find((d) => d.caseId === caseId && d.docKey === docKey);
+        if (existing) {
+          return { ...s, docChecks: s.docChecks.map((d) => (d.id === existing.id ? { ...d, ...patch } : d)) };
+        }
+        const created: CaseDocCheck = {
+          id: `dc_${Date.now().toString(36)}_${Math.floor(Math.random() * 1e4).toString(36)}`,
+          caseId,
+          docKey,
+          status: "todo",
+          ...patch,
+        };
+        return { ...s, docChecks: [created, ...s.docChecks] };
+      }),
     addCorrection: (c) => setDb((s) => ({ ...s, corrections: [c, ...s.corrections] })),
     updateCorrection: (id, patch) =>
       setDb((s) => ({

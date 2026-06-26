@@ -201,6 +201,17 @@ export interface FeePlan {
   createdAt: string;
 }
 
+// 서류 체크리스트 — 사건별 서류 준비 상태
+export type DocCheckStatus = "todo" | "requested" | "done" | "na"; // 미비/발급요청/완료/해당없음
+export interface CaseDocCheck {
+  id: string;
+  caseId: string;
+  docKey: string; // 마스터 서류 key (lib/docChecklist)
+  status: DocCheckStatus;
+  receivedAt?: string;
+  memo?: string;
+}
+
 // 사건기록부 — 직원이 사건마다 남기는 시간순 업무 기록
 export interface CaseLog {
   id: string;
