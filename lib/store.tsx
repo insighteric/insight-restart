@@ -14,6 +14,7 @@ import type {
   FeePlan,
   CaseLog,
   CaseDocCheck,
+  Referral,
 } from "./types";
 import {
   seedCases,
@@ -25,6 +26,7 @@ import {
   seedFeePlans,
   seedCaseLogs,
   seedDocChecks,
+  seedReferrals,
 } from "./seed";
 import { DEFAULT_SETTINGS } from "./calc";
 
@@ -37,6 +39,7 @@ interface DB {
   feePlans: FeePlan[];
   caseLogs: CaseLog[];
   docChecks: CaseDocCheck[];
+  referrals: Referral[];
   subscription: Subscription;
   settings: Settings;
 }
@@ -50,6 +53,7 @@ const initial: DB = {
   feePlans: seedFeePlans,
   caseLogs: seedCaseLogs,
   docChecks: seedDocChecks,
+  referrals: seedReferrals,
   subscription: seedSubscription,
   settings: DEFAULT_SETTINGS,
 };
@@ -71,6 +75,10 @@ interface StoreApi extends DB {
   removeCaseLog: (id: string) => void;
   docChecksForCase: (caseId: string) => CaseDocCheck[];
   setDocCheck: (caseId: string, docKey: string, patch: Partial<CaseDocCheck>) => void;
+  referralForCase: (caseId: string) => Referral | undefined;
+  addReferral: (r: Referral) => void;
+  updateReferral: (id: string, patch: Partial<Referral>) => void;
+  removeReferral: (id: string) => void;
   addCorrection: (c: Correction) => void;
   updateCorrection: (id: string, patch: Partial<Correction>) => void;
   addDocument: (d: CaseDocument) => void;
@@ -184,6 +192,11 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         };
         return { ...s, docChecks: [created, ...s.docChecks] };
       }),
+    referralForCase: (caseId) => db.referrals.find((r) => r.caseId === caseId),
+    addReferral: (r) => setDb((s) => ({ ...s, referrals: [r, ...s.referrals] })),
+    updateReferral: (id, patch) =>
+      setDb((s) => ({ ...s, referrals: s.referrals.map((r) => (r.id === id ? { ...r, ...patch } : r)) })),
+    removeReferral: (id) => setDb((s) => ({ ...s, referrals: s.referrals.filter((r) => r.id !== id) })),
     addCorrection: (c) => setDb((s) => ({ ...s, corrections: [c, ...s.corrections] })),
     updateCorrection: (id, patch) =>
       setDb((s) => ({

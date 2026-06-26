@@ -8,6 +8,7 @@ import type {
   FeePlan,
   CaseLog,
   CaseDocCheck,
+  Referral,
 } from "./types";
 
 const today = new Date();
@@ -51,6 +52,16 @@ export const seedClients: Client[] = [
     job: "프리랜서 개발자",
     memo: "신용대출·마이너스통장. 무주택.",
     createdAt: iso(-10),
+  },
+  {
+    id: "cl_4",
+    name: "최영호",
+    phone: "010-3333-7788",
+    rrnMasked: "880415-1******",
+    address: "서울시 노원구 동일로 77",
+    job: "건설 일용직",
+    memo: "소득 불안정으로 회생 기각. 채무조정 연계 검토.",
+    createdAt: iso(-60),
   },
 ];
 
@@ -136,6 +147,29 @@ export const seedCases: Case[] = [
       { id: "as_8", category: "security", label: "주식 계좌", value: 1_800_000, exemptAmount: 0 },
     ],
     tags: ["상담", "프리랜서"],
+  },
+  {
+    id: "ca_4",
+    type: "rehab",
+    clientId: "cl_4",
+    court: "서울회생법원",
+    caseNo: "2025개회98765",
+    stage: "correction",
+    status: "lost", // 회생 기각
+    assignee: "담당 사무장",
+    createdAt: iso(-58),
+    filedAt: iso(-50),
+    income: {
+      monthlyIncome: 1_900_000,
+      incomeType: "freelance",
+      dependents: 1,
+    },
+    creditors: [
+      { id: "cr_11", name: "OK저축은행", category: "loan", principal: 22_000_000, interest: 4_000_000 },
+      { id: "cr_12", name: "롯데카드", category: "card", principal: 8_500_000, interest: 1_500_000 },
+    ],
+    assets: [{ id: "as_9", category: "deposit", label: "예금", value: 300_000, exemptAmount: 0 }],
+    tags: ["회생기각", "채무조정연계"],
   },
 ];
 
@@ -309,6 +343,20 @@ export const seedDocChecks: CaseDocCheck[] = [
   { id: "dc_4", caseId: "ca_1", docKey: "insurance_surrender", status: "requested", memo: "보정명령 항목 — 보험사 발급 요청함" },
   { id: "dc_5", caseId: "ca_1", docKey: "fact_confirm", status: "todo", memo: "5백만원 출금 사용처 소명" },
   { id: "dc_6", caseId: "ca_1", docKey: "car_reg", status: "done", receivedAt: iso(-27) },
+];
+
+// 신복/새출발 연계(데모)
+export const seedReferrals: Referral[] = [
+  {
+    id: "rf_1",
+    caseId: "ca_4",
+    reason: "rehab_dismissed",
+    target: "credit_workout",
+    status: "consulting",
+    memo: "가용소득 부족으로 회생 기각. 신복 개인워크아웃 상담 예약(다음주). 채무 30,500,000원.",
+    createdAt: iso(-12),
+    updatedAt: iso(-2),
+  },
 ];
 
 export const seedSubscription: Subscription = {

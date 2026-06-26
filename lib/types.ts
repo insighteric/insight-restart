@@ -201,6 +201,38 @@ export interface FeePlan {
   createdAt: string;
 }
 
+// 회생 기각·폐지 → 신용회복위원회/새출발기금 등 연계 관리
+export type ReferralReason =
+  | "rehab_dismissed" // 회생 기각
+  | "rehab_abolished" // 회생 폐지(인가 후)
+  | "rehab_denied" // 인가 전 폐지·불인가
+  | "bankruptcy_denied" // 파산·면책 기각
+  | "etc";
+export type ReferralTarget =
+  | "credit_workout" // 신복 개인워크아웃
+  | "credit_prework" // 신복 프리워크아웃
+  | "fresh_start" // 새출발기금
+  | "refile" // 회생 재신청
+  | "etc";
+export type ReferralStatus =
+  | "candidate" // 대상선정
+  | "consulting" // 상담
+  | "applied" // 접수
+  | "in_progress" // 진행중
+  | "done" // 완료
+  | "hold"; // 보류
+
+export interface Referral {
+  id: string;
+  caseId: string;
+  reason: ReferralReason;
+  target: ReferralTarget;
+  status: ReferralStatus;
+  memo?: string; // 특이사항
+  createdAt: string;
+  updatedAt: string;
+}
+
 // 서류 체크리스트 — 사건별 서류 준비 상태
 export type DocCheckStatus = "todo" | "requested" | "done" | "na"; // 미비/발급요청/완료/해당없음
 export interface CaseDocCheck {

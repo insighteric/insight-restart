@@ -5,6 +5,9 @@ import type {
   AssetCategory,
   DocType,
   EventType,
+  ReferralReason,
+  ReferralTarget,
+  ReferralStatus,
 } from "./types";
 
 export const won = (n: number) =>
@@ -136,6 +139,40 @@ export const eventTypeLabel: Record<EventType, string> = {
   submit: "제출 마감",
   consult: "상담",
   custom: "일정",
+};
+
+export const referralReasonLabel: Record<ReferralReason, string> = {
+  rehab_dismissed: "회생 기각",
+  rehab_abolished: "회생 폐지(인가후)",
+  rehab_denied: "인가전 폐지·불인가",
+  bankruptcy_denied: "파산·면책 기각",
+  etc: "기타",
+};
+
+export const referralTargetLabel: Record<ReferralTarget, string> = {
+  credit_workout: "신복 개인워크아웃",
+  credit_prework: "신복 프리워크아웃",
+  fresh_start: "새출발기금",
+  refile: "회생 재신청",
+  etc: "기타",
+};
+
+export const referralStatusLabel: Record<ReferralStatus, string> = {
+  candidate: "대상선정",
+  consulting: "상담",
+  applied: "접수",
+  in_progress: "진행중",
+  done: "완료",
+  hold: "보류",
+};
+
+export const referralStatusTone: Record<ReferralStatus, string> = {
+  candidate: "muted",
+  consulting: "info",
+  applied: "brand",
+  in_progress: "warning",
+  done: "success",
+  hold: "muted",
 };
 
 export const eventTypeColor: Record<EventType, string> = {
