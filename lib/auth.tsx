@@ -11,7 +11,10 @@ interface AuthApi {
   firmId: string | null;
   firmName: string | null;
   signIn: (email: string, password: string) => Promise<{ error?: string }>;
-  signUp: (email: string, password: string, firmName: string, name: string) => Promise<{ error?: string }>;
+  signUp: (email: string, password: string, firmName: string, name: string, phone: string) => Promise<{ error?: string }>;
+  updatePassword: (newPassword: string) => Promise<{ error?: string }>;
+  resetPassword: (email: string) => Promise<{ error?: string }>;
+  findEmail: (name: string, phone: string) => Promise<{ email?: string | null; error?: string }>;
   signOut: () => Promise<void>;
 }
 
@@ -71,14 +74,37 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return error ? { error: error.message } : {};
   };
 
-  const signUp: AuthApi["signUp"] = async (email, password, firm, name) => {
+  const signUp: AuthApi["signUp"] = async (email, password, firm, name, phone) => {
     const sb = getSupabase();
     if (!sb) return { error: "Supabase 미설정" };
     const { error } = await sb.auth.signUp({
       email,
       password,
-      options: { data: { firm_name: firm, name } },
+      options: { data: { firm_name: firm, name, phone } },
     });
+    return error ? { error: error.message } : {};
+  };
+
+  const resetPassword: AuthApi["resetPassword"] = async (email) => {
+    const sb = getSupabase();
+    if (!sb) return { error: "Supabase 미설정" };
+    const redirectTo = typeof window !== "undefined" ? `${window.location.origin}/reset-password` : undefined;
+    const { error } = await sb.auth.resetPasswordForEmail(email, { redirectTo });
+    return error ? { error: error.message } : {};
+  };
+
+  const findEmail: AuthApi["findEmail"] = async (name, phone) => {
+    const sb = getSupabase();
+    if (!sb) return { error: "Supabase 미설정" };
+    const { data, error } = await sb.rpc("find_email_by_name_phone", { p_name: name, p_phone: phone });
+    if (error) return { error: error.message };
+    return { email: (data as string | null) ?? null };
+  };
+
+  const updatePassword: AuthApi["updatePassword"] = async (newPassword) => {
+    const sb = getSupabase();
+    if (!sb) return { error: "Supabase 미설정" };
+    const { error } = await sb.auth.updateUser({ password: newPassword });
     return error ? { error: error.message } : {};
   };
 
@@ -91,7 +117,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <Ctx.Provider value={{ configured, loading, user, firmId, firmName, signIn, signUp, signOut }}>
+    <Ctx.Provider value={{ configured, loading, user, firmId, firmName, signIn, signUp, updatePassword, resetPassword, findEmail, signOut }}>
       {children}
     </Ctx.Provider>
   );

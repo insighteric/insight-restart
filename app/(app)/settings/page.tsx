@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Check, Sparkles, MessageCircle, KeyRound, RotateCcw, Building2, Database, CreditCard, Loader2 } from "lucide-react";
+import { Check, Sparkles, MessageCircle, KeyRound, RotateCcw, Building2, Database, CreditCard, Loader2, Lock, LogOut } from "lucide-react";
 import { useStore } from "@/lib/store";
+import { useAuth } from "@/lib/auth";
 import { PageHeader } from "@/components/AppShell";
 import { Card, CardHeader, Button, Badge, Field, Input } from "@/components/ui";
 import { won } from "@/lib/format";
@@ -42,6 +43,7 @@ const PLANS: { tier: PlanTier; name: string; price: string; per: string; feature
 
 export default function SettingsPage() {
   const store = useStore();
+  const auth = useAuth();
   const { settings, subscription } = store;
   const [firmName, setFirmName] = useState(settings.firmName);
   const [ratio, setRatio] = useState(settings.livingCostRatio * 100);
@@ -239,7 +241,96 @@ export default function SettingsPage() {
           </div>
         </Card>
       </div>
+
+      {/* 계정 */}
+      {auth.configured && auth.user && (
+        <div className="mt-4 grid gap-4 lg:grid-cols-2">
+          <AccountCard />
+        </div>
+      )}
     </div>
+  );
+}
+
+function AccountCard() {
+  const auth = useAuth();
+  const [pw, setPw] = useState("");
+  const [pw2, setPw2] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [done, setDone] = useState(false);
+
+  const submit = async () => {
+    setError(null);
+    setDone(false);
+    if (pw.length < 6) {
+      setError("비밀번호는 6자 이상이어야 합니다.");
+      return;
+    }
+    if (pw !== pw2) {
+      setError("두 비밀번호가 일치하지 않습니다.");
+      return;
+    }
+    setBusy(true);
+    try {
+      const { error } = await auth.updatePassword(pw);
+      if (error) {
+        setError(/should be at least|Password/i.test(error) ? "비밀번호는 6자 이상이어야 합니다." : error);
+      } else {
+        setDone(true);
+        setPw("");
+        setPw2("");
+        setTimeout(() => setDone(false), 3000);
+      }
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <Card>
+      <CardHeader title="계정 · 비밀번호" desc="로그인 비밀번호를 변경합니다." action={<Lock size={16} className="text-faint" />} />
+      <div className="space-y-4 p-5">
+        <div className="rounded-lg bg-surface-2 px-3 py-2 text-[13px] text-ink-soft">
+          로그인 계정: <span className="font-medium text-ink">{auth.user?.email}</span>
+        </div>
+        <Field label="새 비밀번호" hint="6자 이상">
+          <Input
+            type="password"
+            value={pw}
+            onChange={(e) => setPw(e.target.value)}
+            placeholder="••••••••"
+            autoComplete="new-password"
+          />
+        </Field>
+        <Field label="새 비밀번호 확인">
+          <Input
+            type="password"
+            value={pw2}
+            onChange={(e) => setPw2(e.target.value)}
+            placeholder="••••••••"
+            autoComplete="new-password"
+            onKeyDown={(e) => e.key === "Enter" && submit()}
+          />
+        </Field>
+
+        {error && <div className="rounded-lg bg-danger-bg px-3 py-2 text-[13px] text-danger">{error}</div>}
+        {done && <div className="rounded-lg bg-success-bg px-3 py-2 text-[13px] text-success">비밀번호가 변경되었습니다.</div>}
+
+        <div className="flex items-center justify-between">
+          <button
+            onClick={() => auth.signOut()}
+            className="inline-flex items-center gap-1.5 text-[13px] font-medium text-muted hover:text-ink hover:underline"
+          >
+            <LogOut size={14} /> 로그아웃
+          </button>
+          <Button onClick={submit} disabled={busy || !pw || !pw2}>
+            {busy ? <Loader2 size={15} className="animate-spin" /> : <KeyRound size={15} />}
+            비밀번호 변경
+          </Button>
+        </div>
+      </div>
+    </Card>
   );
 }
 
