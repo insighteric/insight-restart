@@ -1,0 +1,263 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import { Check, Sparkles, MessageCircle, KeyRound, RotateCcw, Building2, Database, CreditCard, Loader2 } from "lucide-react";
+import { useStore } from "@/lib/store";
+import { PageHeader } from "@/components/AppShell";
+import { Card, CardHeader, Button, Badge, Field, Input } from "@/components/ui";
+import { won } from "@/lib/format";
+import type { PlanTier } from "@/lib/types";
+
+interface IntegrationStatus {
+  supabase: boolean;
+  toss: boolean;
+  kakao: boolean;
+  ai: boolean;
+}
+
+const PLANS: { tier: PlanTier; name: string; price: string; per: string; features: string[]; highlight?: boolean }[] = [
+  {
+    tier: "free",
+    name: "Free",
+    price: "0",
+    per: "체험",
+    features: ["사건 5건", "계산기·거래내역 분석", "보정명령 AI 월 5회"],
+  },
+  {
+    tier: "pro",
+    name: "Pro",
+    price: "59,000",
+    per: "월 / 1인",
+    highlight: true,
+    features: ["사건 무제한", "AI 보정·서류작성 월 500회", "카톡·이메일 공유", "일정 자동 알림"],
+  },
+  {
+    tier: "team",
+    name: "Team",
+    price: "149,000",
+    per: "월 / 3인",
+    features: ["Pro 전체 기능", "팀 공유·권한 관리", "카카오 알림톡 자동발송", "전담 지원"],
+  },
+];
+
+export default function SettingsPage() {
+  const store = useStore();
+  const { settings, subscription } = store;
+  const [firmName, setFirmName] = useState(settings.firmName);
+  const [ratio, setRatio] = useState(settings.livingCostRatio * 100);
+  const [table, setTable] = useState(settings.medianIncomeByHousehold);
+  const [savedMsg, setSavedMsg] = useState(false);
+  const [status, setStatus] = useState<IntegrationStatus | null>(null);
+  const [billing, setBilling] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetch("/api/integrations/status")
+      .then((r) => r.json())
+      .then(setStatus)
+      .catch(() => setStatus({ supabase: false, toss: false, kakao: false, ai: false }));
+  }, []);
+
+  const startBilling = async () => {
+    const clientKey = process.env.NEXT_PUBLIC_TOSS_CLIENT_KEY;
+    if (!clientKey) {
+      setBilling("토스 클라이언트 키(NEXT_PUBLIC_TOSS_CLIENT_KEY)를 설정하면 카드 등록·정기결제가 활성화됩니다.");
+      return;
+    }
+    try {
+      if (!(window as unknown as { TossPayments?: unknown }).TossPayments) {
+        await new Promise<void>((res, rej) => {
+          const s = document.createElement("script");
+          s.src = "https://js.tosspayments.com/v1/payment";
+          s.onload = () => res();
+          s.onerror = () => rej();
+          document.head.appendChild(s);
+        });
+      }
+      const TossPayments = (window as unknown as { TossPayments: (k: string) => { requestBillingAuth: (m: string, o: Record<string, string>) => Promise<void> } }).TossPayments;
+      const tp = TossPayments(clientKey);
+      const customerKey = `firm_${Date.now().toString(36)}`;
+      await tp.requestBillingAuth("카드", {
+        customerKey,
+        successUrl: window.location.origin + "/settings?billing=success",
+        failUrl: window.location.origin + "/settings?billing=fail",
+      });
+    } catch {
+      setBilling("결제창을 여는 중 문제가 발생했습니다.");
+    }
+  };
+
+  const saveSettings = () => {
+    store.updateSettings({
+      firmName,
+      livingCostRatio: ratio / 100,
+      medianIncomeByHousehold: table,
+    });
+    setSavedMsg(true);
+    setTimeout(() => setSavedMsg(false), 2000);
+  };
+
+  return (
+    <div>
+      <PageHeader title="설정·구독" desc="요금제, 사무소 정보, 기준값, 연동을 관리합니다." />
+
+      {/* 구독 */}
+      <div className="mb-6">
+        <h2 className="mb-3 text-[15px] font-bold text-ink">구독 플랜</h2>
+        <div className="grid gap-3 md:grid-cols-3">
+          {PLANS.map((p) => {
+            const current = subscription.tier === p.tier;
+            return (
+              <Card
+                key={p.tier}
+                className={`relative p-5 ${p.highlight ? "ring-2 ring-brand" : ""}`}
+              >
+                {p.highlight && (
+                  <span className="absolute -top-2.5 left-5 rounded-full bg-brand px-2.5 py-0.5 text-[11px] font-bold text-white">
+                    인기
+                  </span>
+                )}
+                <div className="flex items-center justify-between">
+                  <span className="text-[15px] font-bold text-ink">{p.name}</span>
+                  {current && <Badge tone="success"><Check size={11} /> 사용중</Badge>}
+                </div>
+                <div className="mt-2 flex items-end gap-1">
+                  <span className="text-2xl font-extrabold text-ink">₩{p.price}</span>
+                  <span className="mb-1 text-xs text-muted">{p.per}</span>
+                </div>
+                <ul className="mt-4 space-y-2">
+                  {p.features.map((f) => (
+                    <li key={f} className="flex items-start gap-2 text-[13px] text-ink-soft">
+                      <Check size={15} className="mt-0.5 shrink-0 text-success" />
+                      {f}
+                    </li>
+                  ))}
+                </ul>
+                <Button
+                  variant={current ? "secondary" : p.highlight ? "primary" : "secondary"}
+                  className="mt-4 w-full"
+                  disabled={current}
+                  onClick={p.tier === "free" ? undefined : startBilling}
+                >
+                  {current ? "현재 플랜" : p.tier === "free" ? "이 플랜 선택" : "카드 등록·구독"}
+                </Button>
+              </Card>
+            );
+          })}
+        </div>
+        <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
+          <p className="text-[12px] text-faint">
+            현재 {subscription.tier.toUpperCase()} · AI 크레딧 {subscription.aiCreditsUsed}/{subscription.aiCreditsLimit} 사용 · {subscription.seats}석
+          </p>
+          <span className="inline-flex items-center gap-1.5 text-[12px] text-muted">
+            <CreditCard size={13} /> 정기결제: 토스페이먼츠 {status?.toss ? "연동됨" : "연동 전(테스트 키 입력 시 활성화)"}
+          </span>
+        </div>
+        {billing && <p className="mt-1 text-[12px] font-medium text-brand">{billing}</p>}
+      </div>
+
+      <div className="grid gap-4 lg:grid-cols-2">
+        {/* 사무소 + 기준값 */}
+        <Card>
+          <CardHeader title="사무소 · 기준값" desc="기준 중위소득은 매년 고시값으로 갱신하세요." action={<Building2 size={16} className="text-faint" />} />
+          <div className="space-y-4 p-5">
+            <Field label="사무소명">
+              <Input value={firmName} onChange={(e) => setFirmName(e.target.value)} />
+            </Field>
+            <Field label="생계비 인정 비율 (기준 중위소득 대비 %)" hint="통상 60%">
+              <Input type="number" value={ratio} onChange={(e) => setRatio(Number(e.target.value))} />
+            </Field>
+            <div>
+              <div className="mb-2 text-[13px] font-medium text-ink-soft">기준 중위소득 (월, 가구원수별)</div>
+              <div className="grid grid-cols-2 gap-2">
+                {[1, 2, 3, 4, 5, 6].map((h) => (
+                  <div key={h} className="flex items-center gap-2">
+                    <span className="w-9 text-[13px] text-muted">{h}인</span>
+                    <Input
+                      type="number"
+                      value={table[h] ?? 0}
+                      onChange={(e) => setTable({ ...table, [h]: Number(e.target.value) })}
+                    />
+                  </div>
+                ))}
+              </div>
+              <p className="mt-2 text-[11px] text-faint">예: 1인 {won(table[1] ?? 0)} → 생계비 {won(Math.round((table[1] ?? 0) * (ratio / 100)))}</p>
+            </div>
+            <div className="flex items-center justify-between">
+              <button
+                onClick={() => {
+                  if (confirm("데모 데이터를 초기화할까요? 추가한 사건이 모두 삭제됩니다.")) store.reset();
+                }}
+                className="inline-flex items-center gap-1.5 text-[13px] font-medium text-danger hover:underline"
+              >
+                <RotateCcw size={14} /> 데이터 초기화
+              </button>
+              <Button onClick={saveSettings}>{savedMsg ? <Check size={15} /> : null} {savedMsg ? "저장됨" : "저장"}</Button>
+            </div>
+          </div>
+        </Card>
+
+        {/* 연동 */}
+        <Card>
+          <CardHeader title="연동" desc="채널을 연결하면 안내·알림을 자동 발송합니다." action={<Sparkles size={16} className="text-brand" />} />
+          <div className="divide-y divide-line-soft">
+            <IntegrationRow
+              icon={<MessageCircle size={18} className="text-[#9c7a00]" />}
+              name="카카오 알림톡 (솔라피)"
+              desc="보정·일정 안내를 1:1 자동 전송"
+              on={status?.kakao}
+              env="SOLAPI_API_KEY"
+            />
+            <IntegrationRow
+              icon={<Database size={18} className="text-success" />}
+              name="Supabase (DB·인증)"
+              desc="멀티 사무소·팀 공유·영구 저장"
+              on={status?.supabase}
+              env="NEXT_PUBLIC_SUPABASE_URL"
+            />
+            <IntegrationRow
+              icon={<CreditCard size={18} className="text-brand" />}
+              name="토스페이먼츠 (정기결제)"
+              desc="구독 카드 등록·자동 결제"
+              on={status?.toss}
+              env="TOSS_SECRET_KEY"
+            />
+            <IntegrationRow
+              icon={<KeyRound size={18} className="text-ink-soft" />}
+              name="Anthropic API (AI)"
+              desc="보정·서류 AI 품질 향상 (미설정 시 규칙기반)"
+              on={status?.ai}
+              env="ANTHROPIC_API_KEY"
+            />
+          </div>
+          <div className="border-t border-line-soft p-4 text-[12px] text-muted">
+            <p className="font-semibold text-ink-soft">연동 방법</p>
+            <p className="mt-1">
+              프로젝트 루트 <code className="rounded bg-surface-2 px-1">.env.local</code> 에 각 키를 설정하면
+              자동으로 활성화됩니다(<code className="rounded bg-surface-2 px-1">.env.example</code> 참고). Supabase 스키마는
+              <code className="mx-1 rounded bg-surface-2 px-1">supabase/schema.sql</code> 로 적용합니다. 미설정 시에도 전 기능이 로컬·규칙기반으로 동작합니다.
+            </p>
+          </div>
+        </Card>
+      </div>
+    </div>
+  );
+}
+
+function IntegrationRow({ icon, name, desc, on, env }: { icon: React.ReactNode; name: string; desc: string; on?: boolean; env: string }) {
+  return (
+    <div className="flex items-center gap-3 px-5 py-3.5">
+      <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-surface-2">{icon}</div>
+      <div className="min-w-0 flex-1">
+        <div className="text-sm font-medium text-ink">{name}</div>
+        <div className="text-xs text-muted">{desc}</div>
+      </div>
+      {on === undefined ? (
+        <Badge tone="muted"><Loader2 size={11} className="animate-spin" /> 확인중</Badge>
+      ) : on ? (
+        <Badge tone="success"><Check size={11} /> 연동됨</Badge>
+      ) : (
+        <code className="rounded bg-surface-2 px-1.5 py-0.5 text-[10.5px] text-faint">{env}</code>
+      )}
+    </div>
+  );
+}
