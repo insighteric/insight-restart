@@ -1,13 +1,16 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { ListChecks, ExternalLink, Copy, Check, FileText } from "lucide-react";
+import { ListChecks, ExternalLink, Copy, Check, FileText, Zap, Loader2 } from "lucide-react";
 import { useStore } from "@/lib/store";
 import { PageHeader } from "@/components/AppShell";
 import { Card, CardHeader, Button, Badge, Input, EmptyState } from "@/components/ui";
 import { caseTypeLabel, formatDate } from "@/lib/format";
 import { DOC_MASTER, DOC_CATEGORY_LABEL, docsForType, type DocCategory, type DocSpec } from "@/lib/docChecklist";
+import { isCodefDoc } from "@/lib/codef";
 import type { DocCheckStatus } from "@/lib/types";
+
+const logId = () => `lg_${Date.now().toString(36)}_${Math.floor(Math.random() * 1e4).toString(36)}`;
 
 const STATUS: { key: DocCheckStatus; label: string; tone: string }[] = [
   { key: "todo", label: "미비", tone: "border-line text-muted" },
@@ -21,6 +24,7 @@ export default function ChecklistPage() {
   const store = useStore();
   const [caseId, setCaseId] = useState(store.cases[0]?.id ?? "");
   const [copied, setCopied] = useState(false);
+  const [issuing, setIssuing] = useState<string | null>(null);
 
   const c = store.caseById(caseId);
   const checks = store.docChecksForCase(caseId);
@@ -57,6 +61,37 @@ export default function ChecklistPage() {
     const patch: Partial<{ status: DocCheckStatus; receivedAt?: string }> = { status };
     if (status === "done" && !checkOf(d.key)?.receivedAt) patch.receivedAt = todayISO();
     store.setDocCheck(caseId, d.key, patch);
+  };
+
+  // 공공·행정 서류 자동발급 (CODEF). 키 미설정 시 목업으로 동작.
+  const autoIssue = async (d: DocSpec) => {
+    const client = c ? store.clientById(c.clientId) : undefined;
+    setIssuing(d.key);
+    try {
+      const res = await fetch("/api/issue", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ docKey: d.key, clientName: client?.name }),
+      });
+      const j = await res.json();
+      if (res.ok && j.ok) {
+        store.setDocCheck(caseId, d.key, {
+          status: "done",
+          receivedAt: j.issuedAt ?? todayISO(),
+          memo: j.mock ? "CODEF 자동발급(목업) — 키 설정 시 실발급" : "CODEF 자동발급",
+        });
+        store.addCaseLog({
+          id: logId(), caseId, author: "자동발급", body: `${d.name} ${j.mock ? "자동발급(목업)" : "자동발급 완료"} — ${j.org}`, createdAt: new Date().toISOString(),
+        });
+        if (j.mock) alert(`${d.name}\n\n${j.message}`);
+      } else {
+        alert(`자동발급 실패: ${j.message ?? "오류"}`);
+      }
+    } catch {
+      alert("자동발급 요청 중 오류가 발생했습니다.");
+    } finally {
+      setIssuing(null);
+    }
   };
 
   const copyGuide = async () => {
@@ -166,7 +201,17 @@ export default function ChecklistPage() {
                             {cur === "done" && rec?.receivedAt && <span className="text-success">· 수령 {formatDate(rec.receivedAt)}</span>}
                           </div>
                         </div>
-                        <div className="flex shrink-0 gap-1">
+                        <div className="flex shrink-0 items-center gap-1">
+                          {isCodefDoc(d.key) && cur !== "done" && (
+                            <button
+                              onClick={() => autoIssue(d)}
+                              disabled={issuing === d.key}
+                              title="공공·행정 서류 자동발급(CODEF)"
+                              className="mr-1 inline-flex items-center gap-1 rounded-md border border-brand bg-brand-50 px-2 py-1 text-[12px] font-semibold text-brand-700 hover:bg-brand-100 disabled:opacity-50"
+                            >
+                              {issuing === d.key ? <Loader2 size={12} className="animate-spin" /> : <Zap size={12} />} 자동발급
+                            </button>
+                          )}
                           {STATUS.map((st) => (
                             <button
                               key={st.key}
@@ -197,7 +242,9 @@ export default function ChecklistPage() {
         })}
       </div>
 
-      <p className="mt-4 text-[11px] text-faint">※ ‘의뢰인 안내문 복사’는 미비·요청 상태 서류만 모아 카톡/문자용 안내문을 클립보드에 복사합니다.</p>
+      <p className="mt-4 text-[11px] text-faint">
+        ※ <Zap size={10} className="inline text-brand" /> <b>자동발급</b>은 공공·행정 서류(정부24·홈택스·대법원·4대보험)를 CODEF로 발급합니다. 현재는 <b>목업</b>(키 미설정)으로 흐름만 동작하며, CODEF 키를 설정하면 의뢰인 간편인증으로 실발급됩니다. 은행·카드 거래내역은 거래내역 분석에서 업로드로 처리하세요.
+      </p>
     </div>
   );
 }

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Check, Sparkles, MessageCircle, KeyRound, RotateCcw, Building2, Database, CreditCard, Loader2, Lock, LogOut } from "lucide-react";
+import { Check, Sparkles, MessageCircle, KeyRound, RotateCcw, Building2, Database, CreditCard, Loader2, Lock, LogOut, Stamp } from "lucide-react";
 import { useStore } from "@/lib/store";
 import { useAuth } from "@/lib/auth";
 import { PageHeader } from "@/components/AppShell";
@@ -14,6 +14,7 @@ interface IntegrationStatus {
   toss: boolean;
   kakao: boolean;
   ai: boolean;
+  codef: boolean;
 }
 
 const PLANS: { tier: PlanTier; name: string; price: string; per: string; features: string[]; highlight?: boolean }[] = [
@@ -56,7 +57,7 @@ export default function SettingsPage() {
     fetch("/api/integrations/status")
       .then((r) => r.json())
       .then(setStatus)
-      .catch(() => setStatus({ supabase: false, toss: false, kakao: false, ai: false }));
+      .catch(() => setStatus({ supabase: false, toss: false, kakao: false, ai: false, codef: false }));
   }, []);
 
   const startBilling = async () => {
@@ -229,6 +230,13 @@ export default function SettingsPage() {
               desc="보정·서류 AI 품질 향상 (미설정 시 규칙기반)"
               on={status?.ai}
               env="ANTHROPIC_API_KEY"
+            />
+            <IntegrationRow
+              icon={<Stamp size={18} className="text-brand-700" />}
+              name="CODEF (공공서류 자동발급)"
+              desc="정부24·홈택스·대법원·4대보험 자동발급 (미설정 시 목업)"
+              on={status?.codef}
+              env="CODEF_CLIENT_ID"
             />
           </div>
           <div className="border-t border-line-soft p-4 text-[12px] text-muted">
