@@ -26,7 +26,27 @@ export interface TextItemPos {
   h: number;
 }
 
-// 페이지별 텍스트(줄 단위 정렬)
+// 한 줄(같은 y의 아이템들)을 컬럼 구조를 보존해 문자열로 합친다.
+// 글자 사이 가로 간격이 폰트 크기 대비 충분히 크면 "컬럼 경계"로 보고 탭(\t)을 넣는다.
+// → 표 형태 은행 PDF에서 날짜/적요/출금/입금/잔액 컬럼이 분리되어 파서 정밀도가 크게 향상된다.
+function joinLineWithColumns(items: { x: number; w: number; h: number; s: string }[]): string {
+  const sorted = items.filter((i) => i.s !== "").sort((a, b) => a.x - b.x);
+  if (!sorted.length) return "";
+  let line = sorted[0].s;
+  for (let i = 1; i < sorted.length; i++) {
+    const cur = sorted[i];
+    const prev = sorted[i - 1];
+    const gap = cur.x - (prev.x + prev.w);
+    const font = cur.h || prev.h || 10;
+    // 폰트 크기의 약 0.9배를 넘는 빈칸 → 컬럼 경계
+    if (gap > font * 0.9) line += "\t" + cur.s;
+    else line += " " + cur.s;
+  }
+  // 셀 내부 다중 공백은 1칸으로, 탭 주변 공백은 제거
+  return line.replace(/ {2,}/g, " ").replace(/ *\t */g, "\t").trim();
+}
+
+// 페이지별 텍스트(줄 단위 정렬, 컬럼 보존)
 export async function extractTextByPage(input: File | ArrayBuffer): Promise<string[]> {
   const pdfjs = await getPdfjs();
   const buf = await toArrayBuffer(input);
@@ -35,26 +55,18 @@ export async function extractTextByPage(input: File | ArrayBuffer): Promise<stri
   for (let p = 1; p <= doc.numPages; p++) {
     const page = await doc.getPage(p);
     const content = await page.getTextContent();
-    // y좌표로 줄 묶기
-    const lines = new Map<number, { x: number; s: string }[]>();
+    // y좌표로 줄 묶기 (너비·높이도 보존)
+    const lines = new Map<number, { x: number; w: number; h: number; s: string }[]>();
     for (const it of content.items as any[]) {
       const tr = it.transform;
       const y = Math.round(tr[5]);
-      const x = tr[4];
       const key = Math.round(y / 3) * 3;
       if (!lines.has(key)) lines.set(key, []);
-      lines.get(key)!.push({ x, s: it.str });
+      lines.get(key)!.push({ x: tr[4], w: it.width || 0, h: it.height || Math.abs(tr[3]) || 10, s: it.str });
     }
     const sortedLines = [...lines.entries()]
       .sort((a, b) => b[0] - a[0])
-      .map(([, items]) =>
-        items
-          .sort((a, b) => a.x - b.x)
-          .map((i) => i.s)
-          .join(" ")
-          .replace(/\s+/g, " ")
-          .trim(),
-      )
+      .map(([, items]) => joinLineWithColumns(items))
       .filter(Boolean);
     pages.push(sortedLines.join("\n"));
   }

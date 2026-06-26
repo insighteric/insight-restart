@@ -24,8 +24,16 @@ export interface AnalyzeOptions {
   overdraft?: { startDate: string; limit: number }; // 마이너스 통장 추적
 }
 
-const num = (s: string) => Number(String(s ?? "").replace(/[^0-9.-]/g, "")) || 0;
-const isDate = (s: string) => /\d{4}[.\-/]\d{1,2}[.\-/]\d{1,2}|\d{1,2}[.\-/]\d{1,2}/.test(s);
+// 금액 파싱 — 괄호 (1,000), 말미 음수 1,000-, 선두 음수, ▲/△(은행별 출금표시) 지원
+const num = (s: string) => {
+  const str = String(s ?? "").trim();
+  const neg = /^\(.*\)$/.test(str) || /[-▲△]\s*$/.test(str) || /^[-▲△]/.test(str);
+  const v = Number(str.replace(/[^0-9.]/g, "")) || 0;
+  return neg ? -v : v;
+};
+// 날짜 인식: YYYY-MM-DD / YYYY.MM.DD / YYYYMMDD / MM-DD(연도생략)
+const isDate = (s: string) =>
+  /(20\d{2}[.\-/]\d{1,2}[.\-/]\d{1,2})|(\b20\d{6}\b)|(\d{1,2}[.\-/]\d{1,2})/.test(s);
 const findIdx = (cols: string[], re: RegExp) => cols.findIndex((c) => re.test(c));
 
 function stripThousands(s: string): string {
@@ -38,12 +46,18 @@ function stripThousands(s: string): string {
   return cur;
 }
 
-function normDate(s: string): string {
-  const m = String(s).match(/(\d{4})[.\-/](\d{1,2})[.\-/](\d{1,2})/);
+function normDate(s: string, defYear: string): string {
+  const str = String(s);
+  // YYYY-MM-DD / YYYY.MM.DD / YYYY/MM/DD (뒤에 시간이 붙어도 날짜만)
+  let m = str.match(/(20\d{2})[.\-/](\d{1,2})[.\-/](\d{1,2})/);
   if (m) return `${m[1]}-${m[2].padStart(2, "0")}-${m[3].padStart(2, "0")}`;
-  const m2 = String(s).match(/(\d{1,2})[.\-/](\d{1,2})/);
-  if (m2) return `2025-${m2[1].padStart(2, "0")}-${m2[2].padStart(2, "0")}`;
-  return s;
+  // YYYYMMDD (구분자 없음)
+  m = str.match(/\b(20\d{2})(\d{2})(\d{2})\b/);
+  if (m) return `${m[1]}-${m[2]}-${m[3]}`;
+  // MM-DD / MM.DD → 명세서 기준연도로 보정
+  m = str.match(/(\d{1,2})[.\-/](\d{1,2})/);
+  if (m) return `${defYear}-${m[1].padStart(2, "0")}-${m[2].padStart(2, "0")}`;
+  return str;
 }
 
 // 증권/코인: 실제 원화 입출금만, 매매/배당/수수료 제외
@@ -59,8 +73,19 @@ export function parseStatement(rawInput: string, source: StmtSource): Txn[] {
   const rows = raw.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
   if (!rows.length) return [];
 
-  const sample = rows[0];
-  const delim = sample.includes("\t") ? /\t/ : sample.includes(",") ? /,/ : /\s{2,}|\|/;
+  // 명세서 기준연도 추론 (MM-DD만 있는 행의 연도 보정용)
+  const yearHit = raw.match(/(20\d{2})[.\-/]\d{1,2}[.\-/]\d{1,2}/) || raw.match(/\b(20\d{2})\d{4}\b/);
+  const defYear = yearHit ? yearHit[1] : String(new Date().getFullYear());
+
+  // 구분자 자동 감지 (전체 행 스캔): 탭 > 콤마 > 다중공백/파이프
+  const tabbed = rows.filter((r) => r.includes("\t")).length;
+  const commaed = rows.filter((r) => (r.match(/,/g) || []).length >= 2).length;
+  const delim =
+    tabbed >= Math.max(1, rows.length * 0.3)
+      ? /\t/
+      : commaed >= Math.max(2, rows.length * 0.5)
+      ? /,/
+      : /\s{2,}|\|/;
   const split = (l: string) => l.split(delim).map((c) => c.trim());
 
   const headerRow = rows.find(
@@ -71,11 +96,11 @@ export function parseStatement(rawInput: string, source: StmtSource): Txn[] {
     const h = split(headerRow);
     idx = {
       date: findIdx(h, /날짜|일자|거래일|승인일|date/i),
-      desc: findIdx(h, /적요|이용내역|거래내용|내용|비고|구분|메모/),
-      cp: findIdx(h, /거래상대|상대방|받는|보낸|수취인|의뢰인|입금자|가맹점/),
-      out: findIdx(h, /출금|지급|차변|이용금액|승인금액|찾으신/),
-      in: findIdx(h, /입금|받은|대변|맡기신/),
-      amt: findIdx(h, /^금액$|거래금액/),
+      desc: findIdx(h, /적요|이용내역|거래내용|내용|비고|구분|메모|기재|표시/),
+      cp: findIdx(h, /거래상대|상대방|받는|보낸|보내는|수취인|의뢰인|입금자|가맹점|예금주/),
+      out: findIdx(h, /출금|지급|차변|이용금액|승인금액|찾으신|출금액/),
+      in: findIdx(h, /입금|받은|대변|맡기신|입금액/),
+      amt: findIdx(h, /^금액$|거래금액|거래액/),
       bal: findIdx(h, /잔액|잔고|balance/i),
     };
   }
@@ -86,7 +111,7 @@ export function parseStatement(rawInput: string, source: StmtSource): Txn[] {
     const cells = split(line);
     if (cells.length < 2 || !cells.some(isDate)) continue;
 
-    const date = normDate(idx.date >= 0 ? cells[idx.date] : cells.find(isDate) ?? cells[0]);
+    const date = normDate(idx.date >= 0 ? cells[idx.date] : cells.find(isDate) ?? cells[0], defYear);
     let amount = 0;
 
     if (headerRow && (idx.in >= 0 || idx.out >= 0)) {
