@@ -11,6 +11,8 @@ import type {
   ScheduleEvent,
   Subscription,
   Settings,
+  FeePlan,
+  CaseLog,
 } from "./types";
 import {
   seedCases,
@@ -19,6 +21,8 @@ import {
   seedDocuments,
   seedEvents,
   seedSubscription,
+  seedFeePlans,
+  seedCaseLogs,
 } from "./seed";
 import { DEFAULT_SETTINGS } from "./calc";
 
@@ -28,6 +32,8 @@ interface DB {
   corrections: Correction[];
   documents: CaseDocument[];
   events: ScheduleEvent[];
+  feePlans: FeePlan[];
+  caseLogs: CaseLog[];
   subscription: Subscription;
   settings: Settings;
 }
@@ -38,6 +44,8 @@ const initial: DB = {
   corrections: seedCorrections,
   documents: seedDocuments,
   events: seedEvents,
+  feePlans: seedFeePlans,
+  caseLogs: seedCaseLogs,
   subscription: seedSubscription,
   settings: DEFAULT_SETTINGS,
 };
@@ -49,6 +57,14 @@ interface StoreApi extends DB {
   correctionsForCase: (caseId: string) => Correction[];
   documentsForCase: (caseId: string) => CaseDocument[];
   eventsForCase: (caseId: string) => ScheduleEvent[];
+  feePlanForCase: (caseId: string) => FeePlan | undefined;
+  logsForCase: (caseId: string) => CaseLog[];
+  addFeePlan: (p: FeePlan) => void;
+  updateFeePlan: (id: string, patch: Partial<FeePlan>) => void;
+  removeFeePlan: (id: string) => void;
+  addCaseLog: (l: CaseLog) => void;
+  updateCaseLog: (id: string, patch: Partial<CaseLog>) => void;
+  removeCaseLog: (id: string) => void;
   addCorrection: (c: Correction) => void;
   updateCorrection: (id: string, patch: Partial<Correction>) => void;
   addDocument: (d: CaseDocument) => void;
@@ -135,6 +151,17 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     correctionsForCase: (caseId) => db.corrections.filter((c) => c.caseId === caseId),
     documentsForCase: (caseId) => db.documents.filter((d) => d.caseId === caseId),
     eventsForCase: (caseId) => db.events.filter((e) => e.caseId === caseId),
+    feePlanForCase: (caseId) => db.feePlans.find((p) => p.caseId === caseId),
+    logsForCase: (caseId) =>
+      db.caseLogs.filter((l) => l.caseId === caseId).sort((a, b) => b.createdAt.localeCompare(a.createdAt)),
+    addFeePlan: (p) => setDb((s) => ({ ...s, feePlans: [p, ...s.feePlans] })),
+    updateFeePlan: (id, patch) =>
+      setDb((s) => ({ ...s, feePlans: s.feePlans.map((p) => (p.id === id ? { ...p, ...patch } : p)) })),
+    removeFeePlan: (id) => setDb((s) => ({ ...s, feePlans: s.feePlans.filter((p) => p.id !== id) })),
+    addCaseLog: (l) => setDb((s) => ({ ...s, caseLogs: [l, ...s.caseLogs] })),
+    updateCaseLog: (id, patch) =>
+      setDb((s) => ({ ...s, caseLogs: s.caseLogs.map((l) => (l.id === id ? { ...l, ...patch } : l)) })),
+    removeCaseLog: (id) => setDb((s) => ({ ...s, caseLogs: s.caseLogs.filter((l) => l.id !== id) })),
     addCorrection: (c) => setDb((s) => ({ ...s, corrections: [c, ...s.corrections] })),
     updateCorrection: (id, patch) =>
       setDb((s) => ({

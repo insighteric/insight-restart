@@ -13,6 +13,8 @@ import {
   Calculator,
   Wrench,
   Settings,
+  NotebookPen,
+  Wallet,
   Sparkles,
   Search,
   Bell,
@@ -28,15 +30,18 @@ const NAV: {
   label: string;
   icon: React.ElementType;
   ai?: boolean;
+  admin?: boolean;
 }[] = [
   { href: "/dashboard", label: "대시보드", icon: LayoutDashboard },
   { href: "/cases", label: "사건 관리", icon: Scale },
+  { href: "/logbook", label: "사건기록부", icon: NotebookPen },
   { href: "/clients", label: "의뢰인", icon: Users },
   { href: "/corrections", label: "보정명령", icon: ClipboardCheck, ai: true },
   { href: "/documents", label: "AI 서류작성", icon: FileText, ai: true },
   { href: "/analyze", label: "거래내역 분석", icon: ReceiptText, ai: true },
   { href: "/schedule", label: "일정·기한", icon: CalendarClock },
   { href: "/calculators", label: "변제 계산기", icon: Calculator },
+  { href: "/payments", label: "분납관리", icon: Wallet, admin: true },
   { href: "/tools", label: "PDF 도구", icon: Wrench },
   { href: "/settings", label: "설정·구독", icon: Settings },
 ];
@@ -46,7 +51,8 @@ const tierLabel: Record<string, string> = { free: "Free", pro: "Pro", team: "Tea
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const { subscription } = useStore();
-  const { firmName, configured, signOut } = useAuth();
+  const { firmName, configured, signOut, isAdmin } = useAuth();
+  const nav = NAV.filter((item) => !item.admin || isAdmin);
 
   return (
     <div className="flex min-h-screen bg-canvas">
@@ -63,7 +69,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         </div>
 
         <nav className="flex-1 space-y-0.5 px-3 py-2">
-          {NAV.map((item) => {
+          {nav.map((item) => {
             const active = pathname === item.href || pathname.startsWith(item.href + "/");
             const Icon = item.icon;
             return (
@@ -162,7 +168,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         </header>
 
         {/* Mobile nav */}
-        <MobileNav pathname={pathname} />
+        <MobileNav pathname={pathname} items={nav} />
 
         <main className="min-w-0 flex-1 px-5 py-6 sm:px-7 lg:px-9">
           <div className="mx-auto w-full max-w-6xl animate-in">{children}</div>
@@ -172,10 +178,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   );
 }
 
-function MobileNav({ pathname }: { pathname: string }) {
+function MobileNav({ pathname, items }: { pathname: string; items: typeof NAV }) {
   return (
     <div className="flex gap-1 overflow-x-auto border-b border-line bg-surface px-3 py-2 lg:hidden">
-      {NAV.map((item) => {
+      {items.map((item) => {
         const active = pathname === item.href || pathname.startsWith(item.href + "/");
         const Icon = item.icon;
         return (

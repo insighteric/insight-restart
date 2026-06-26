@@ -5,6 +5,8 @@ import type {
   CaseDocument,
   ScheduleEvent,
   Subscription,
+  FeePlan,
+  CaseLog,
 } from "./types";
 
 const today = new Date();
@@ -262,6 +264,40 @@ export const seedEvents: ScheduleEvent[] = [
     title: "김민수 채권자집회 (예정)",
     date: iso(45),
   },
+];
+
+// 수임료 분납(데모) — ca_1은 1회차 연체, ca_2는 정상, ca_3은 미작성
+export const seedFeePlans: FeePlan[] = [
+  {
+    id: "fp_1",
+    caseId: "ca_1",
+    totalFee: 1_800_000,
+    memo: "개인회생 수임료(분납 3회)",
+    createdAt: iso(-38),
+    installments: [
+      { id: "fi_1", dueDate: iso(-30), amount: 600_000, paidAmount: 600_000, paidAt: iso(-30) },
+      { id: "fi_2", dueDate: iso(-3), amount: 600_000, paidAmount: 0 },
+      { id: "fi_3", dueDate: iso(27), amount: 600_000, paidAmount: 0 },
+    ],
+  },
+  {
+    id: "fp_2",
+    caseId: "ca_2",
+    totalFee: 1_500_000,
+    memo: "개인파산 수임료(분납 2회)",
+    createdAt: iso(-22),
+    installments: [
+      { id: "fi_4", dueDate: iso(-20), amount: 750_000, paidAmount: 750_000, paidAt: iso(-19) },
+      { id: "fi_5", dueDate: iso(10), amount: 750_000, paidAmount: 0 },
+    ],
+  },
+];
+
+export const seedCaseLogs: CaseLog[] = [
+  { id: "lg_1", caseId: "ca_1", author: "담당 사무장", body: "보정명령 수령. 보험 해약환급금·5백만원 출금 사용처 소명 필요. 의뢰인에게 카톡 안내함.", pinned: true, createdAt: iso(-3) },
+  { id: "lg_2", caseId: "ca_1", author: "담당 사무장", body: "2회차 수임료 미납 — 의뢰인에게 납부 안내 문자 발송.", createdAt: iso(-2) },
+  { id: "lg_3", caseId: "ca_2", author: "담당 사무장", body: "파산신청서 초안 작성 중. 사채(지인) 채권 다툼 있어 확인 필요.", createdAt: iso(-2) },
+  { id: "lg_4", caseId: "ca_3", author: "담당 사무장", body: "1차 상담 완료. 프리랜서 소득 입증자료(계약서·세금신고) 준비 요청.", createdAt: iso(-8) },
 ];
 
 export const seedSubscription: Subscription = {

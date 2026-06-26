@@ -10,6 +10,8 @@ interface AuthApi {
   user: User | null;
   firmId: string | null;
   firmName: string | null;
+  role: string | null; // owner | staff
+  isAdmin: boolean; // owner 또는 데모(미설정) 시 true
   signIn: (email: string, password: string) => Promise<{ error?: string }>;
   signUp: (email: string, password: string, firmName: string, name: string, phone: string) => Promise<{ error?: string }>;
   updatePassword: (newPassword: string) => Promise<{ error?: string }>;
@@ -26,21 +28,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [firmId, setFirmId] = useState<string | null>(null);
   const [firmName, setFirmName] = useState<string | null>(null);
+  const [role, setRole] = useState<string | null>(null);
 
   const loadFirm = useCallback(async (u: User | null) => {
     const sb = getSupabase();
     if (!sb || !u) {
       setFirmId(null);
       setFirmName(null);
+      setRole(null);
       return;
     }
     const { data } = await sb
       .from("members")
-      .select("firm_id, firms(name)")
+      .select("firm_id, role, firms(name)")
       .eq("id", u.id)
       .single();
     if (data) {
       setFirmId(data.firm_id as string);
+      setRole((data.role as string) ?? "staff");
       const firms = data.firms as unknown as { name?: string } | { name?: string }[] | null;
       const name = Array.isArray(firms) ? firms[0]?.name : firms?.name;
       setFirmName(name ?? null);
@@ -114,10 +119,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setUser(null);
     setFirmId(null);
     setFirmName(null);
+    setRole(null);
   };
 
+  // 데모(Supabase 미설정)에선 관리자 권한 부여, 그 외엔 owner만 관리자
+  const isAdmin = !configured || role === "owner";
+
   return (
-    <Ctx.Provider value={{ configured, loading, user, firmId, firmName, signIn, signUp, updatePassword, resetPassword, findEmail, signOut }}>
+    <Ctx.Provider value={{ configured, loading, user, firmId, firmName, role, isAdmin, signIn, signUp, updatePassword, resetPassword, findEmail, signOut }}>
       {children}
     </Ctx.Provider>
   );

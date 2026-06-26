@@ -182,6 +182,35 @@ export interface Case {
   tags?: string[];
 }
 
+// 수임료 분납(관리자 관리) — 의뢰인이 사무소에 내는 수임료의 분할 납부
+export interface FeeInstallment {
+  id: string;
+  dueDate: string; // 약정 납부일 (ISO)
+  amount: number; // 약정 금액
+  paidAmount: number; // 실제 납부액(0이면 미납)
+  paidAt?: string; // 완납일
+  memo?: string;
+}
+
+export interface FeePlan {
+  id: string;
+  caseId: string;
+  totalFee: number; // 총 수임료
+  installments: FeeInstallment[];
+  memo?: string;
+  createdAt: string;
+}
+
+// 사건기록부 — 직원이 사건마다 남기는 시간순 업무 기록
+export interface CaseLog {
+  id: string;
+  caseId: string;
+  author: string; // 작성자
+  body: string; // 기록 내용
+  pinned?: boolean; // 특이사항 고정
+  createdAt: string;
+}
+
 export type PlanTier = "free" | "pro" | "team";
 
 export interface Subscription {
