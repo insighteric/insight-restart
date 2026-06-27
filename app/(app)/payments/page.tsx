@@ -20,7 +20,7 @@ const addMonthsISO = (base: string, m: number) => {
 
 export default function PaymentsPage() {
   const store = useStore();
-  const { isAdmin } = useAuth();
+  const { can } = useAuth();
   const [open, setOpen] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
 
@@ -43,15 +43,15 @@ export default function PaymentsPage() {
     return { unpaid, overdue, overdueCases, paid };
   }, [rows]);
 
-  if (!isAdmin) {
+  if (!can("payments")) {
     return (
       <div>
         <PageHeader title="분납관리" desc="수임료 분할납부·미납 관리" />
         <Card>
           <EmptyState
             icon={<Lock size={30} />}
-            title="관리자(대표) 전용 메뉴입니다"
-            desc="수임료·미납 정보는 사무소 대표(owner) 계정에서만 열람할 수 있습니다. 권한이 필요하면 대표에게 문의하세요."
+            title="접근 권한이 없습니다"
+            desc="수임료·미납 정보는 ‘분납관리’ 권한이 있는 계정만 열람할 수 있습니다. 대표(관리자)에게 권한을 요청하세요."
           />
         </Card>
       </div>

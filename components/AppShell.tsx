@@ -18,6 +18,8 @@ import {
   ListChecks,
   LifeBuoy,
   Lock,
+  BarChart3,
+  UserCog,
   Sparkles,
   Search,
   Bell,
@@ -33,7 +35,7 @@ const NAV: {
   label: string;
   icon: React.ElementType;
   ai?: boolean;
-  admin?: boolean;
+  perm?: string; // 설정 시 해당 권한 보유자(또는 관리자)에게만 노출
 }[] = [
   { href: "/dashboard", label: "대시보드", icon: LayoutDashboard },
   { href: "/cases", label: "사건 관리", icon: Scale },
@@ -46,7 +48,9 @@ const NAV: {
   { href: "/referrals", label: "신복·새출발", icon: LifeBuoy },
   { href: "/schedule", label: "일정·기한", icon: CalendarClock },
   { href: "/calculators", label: "변제 계산기", icon: Calculator },
-  { href: "/payments", label: "분납관리", icon: Wallet, admin: true },
+  { href: "/payments", label: "분납관리", icon: Wallet, perm: "payments" },
+  { href: "/management", label: "경영 대시보드", icon: BarChart3, perm: "dashboard" },
+  { href: "/members", label: "멤버·권한", icon: UserCog, perm: "members" },
   { href: "/tools", label: "PDF 도구", icon: Wrench },
   { href: "/settings", label: "설정·구독", icon: Settings },
 ];
@@ -56,8 +60,8 @@ const tierLabel: Record<string, string> = { free: "Free", pro: "Pro", team: "Tea
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const { subscription } = useStore();
-  const { configured, signOut, isAdmin } = useAuth();
-  const nav = NAV.filter((item) => !item.admin || isAdmin);
+  const { configured, signOut, can } = useAuth();
+  const nav = NAV.filter((item) => !item.perm || can(item.perm));
 
   return (
     <div className="flex min-h-screen bg-canvas">
@@ -88,7 +92,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               >
                 <Icon size={17} className={active ? "text-brand-300" : "text-[#6e7686] group-hover:text-[#a7adba]"} />
                 <span className="flex-1">{item.label}</span>
-                {item.admin && <Lock size={11} className="text-[#6e7686]" />}
+                {item.perm && <Lock size={11} className="text-[#6e7686]" />}
                 {item.ai && <Sparkles size={13} className="text-brand-300" />}
               </Link>
             );
