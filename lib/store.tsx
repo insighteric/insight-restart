@@ -108,27 +108,28 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     if (auth.loading) return;
     let cancelled = false;
     (async () => {
-      if (useCloud) {
-        const sb = getSupabase();
-        const { data } = await sb!.from("app_state").select("data").eq("firm_id", auth.firmId).maybeSingle();
-        if (cancelled) return;
-        const cloud = data?.data as Partial<DB> | undefined;
-        if (cloud && Object.keys(cloud).length > 0) {
-          setDb({ ...initial, ...cloud });
-        } else {
-          // 최초 로그인: 데모 시드를 사무소 데이터로 저장
-          setDb(initial);
-          await sb!.from("app_state").upsert({ firm_id: auth.firmId, data: initial, updated_at: new Date().toISOString() });
-        }
-      } else if (!auth.configured) {
-        try {
+      try {
+        if (useCloud) {
+          const sb = getSupabase();
+          const { data } = await sb!.from("app_state").select("data").eq("firm_id", auth.firmId).maybeSingle();
+          if (cancelled) return;
+          const cloud = data?.data as Partial<DB> | undefined;
+          if (cloud && Object.keys(cloud).length > 0) {
+            setDb({ ...initial, ...cloud });
+          } else {
+            // 최초 로그인: 데모 시드를 사무소 데이터로 저장
+            setDb(initial);
+            await sb!.from("app_state").upsert({ firm_id: auth.firmId, data: initial, updated_at: new Date().toISOString() });
+          }
+        } else if (!auth.configured) {
           const raw = localStorage.getItem(KEY);
           if (raw) setDb({ ...initial, ...JSON.parse(raw) });
-        } catch {
-          /* ignore */
         }
+      } catch {
+        // 로드 실패 시에도 앱은 시드 데이터로 동작(멈추지 않도록)
+      } finally {
+        if (!cancelled) setReady(true);
       }
-      setReady(true);
     })();
     return () => {
       cancelled = true;

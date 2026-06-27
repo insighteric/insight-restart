@@ -38,17 +38,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setRole(null);
       return;
     }
-    const { data } = await sb
-      .from("members")
-      .select("firm_id, role, firms(name)")
-      .eq("id", u.id)
-      .single();
-    if (data) {
-      setFirmId(data.firm_id as string);
-      setRole((data.role as string) ?? "staff");
-      const firms = data.firms as unknown as { name?: string } | { name?: string }[] | null;
-      const name = Array.isArray(firms) ? firms[0]?.name : firms?.name;
-      setFirmName(name ?? null);
+    try {
+      const { data } = await sb
+        .from("members")
+        .select("firm_id, role, firms(name)")
+        .eq("id", u.id)
+        .single();
+      if (data) {
+        setFirmId(data.firm_id as string);
+        setRole((data.role as string) ?? "staff");
+        const firms = data.firms as unknown as { name?: string } | { name?: string }[] | null;
+        const name = Array.isArray(firms) ? firms[0]?.name : firms?.name;
+        setFirmName(name ?? null);
+      }
+    } catch {
+      // 멤버 조회 실패해도 로그인 자체는 유지(로딩이 멈추지 않도록)
     }
   }, []);
 
@@ -58,18 +62,29 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setLoading(false);
       return;
     }
-    sb.auth.getSession().then(async ({ data }) => {
-      const u = data.session?.user ?? null;
-      setUser(u);
-      await loadFirm(u);
-      setLoading(false);
-    });
+    // 어떤 경우에도 로딩이 영구히 걸리지 않도록 안전장치(8초)
+    const safety = setTimeout(() => setLoading(false), 8000);
+    sb.auth
+      .getSession()
+      .then(async ({ data }) => {
+        const u = data.session?.user ?? null;
+        setUser(u);
+        await loadFirm(u);
+      })
+      .catch(() => {})
+      .finally(() => {
+        clearTimeout(safety);
+        setLoading(false);
+      });
     const { data: sub } = sb.auth.onAuthStateChange(async (_e, session) => {
       const u = session?.user ?? null;
       setUser(u);
       await loadFirm(u);
     });
-    return () => sub.subscription.unsubscribe();
+    return () => {
+      clearTimeout(safety);
+      sub.subscription.unsubscribe();
+    };
   }, [loadFirm]);
 
   const signIn: AuthApi["signIn"] = async (email, password) => {
