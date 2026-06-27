@@ -53,7 +53,7 @@ export default function ResetPasswordPage() {
       <div className="w-full max-w-sm">
         <div className="mb-6 flex flex-col items-center gap-2 text-center">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/logo.svg" alt="Insight Restart" className="h-12 w-12 rounded-2xl" />
+          <img src="/logo.png" alt="Insight Restart" className="h-12 w-12 rounded-2xl" />
           <div>
             <div className="text-xl font-extrabold tracking-tight text-ink">Insight Restart</div>
             <div className="text-[12px] text-muted">비밀번호 재설정</div>

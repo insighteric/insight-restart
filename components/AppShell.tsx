@@ -64,7 +64,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       <aside className="sticky top-0 hidden h-screen w-60 shrink-0 flex-col border-r border-line bg-surface lg:flex">
         <div className="flex h-16 items-center gap-2 px-5">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/logo.svg" alt="Insight Restart" className="h-8 w-8 rounded-lg" />
+          <img src="/logo.png" alt="Insight Restart" className="h-8 w-8 rounded-lg" />
           <div className="leading-tight">
             <div className="text-[15px] font-extrabold tracking-tight text-ink">Insight Restart</div>
             <div className="text-[10px] font-medium text-faint">개인회생·파산 AI 실무</div>
@@ -131,7 +131,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           {/* mobile brand */}
           <Link href="/dashboard" className="flex items-center gap-2 lg:hidden">
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/logo.svg" alt="Insight Restart" className="h-7 w-7 rounded-lg" />
+            <img src="/logo.png" alt="Insight Restart" className="h-7 w-7 rounded-lg" />
             <span className="font-extrabold text-ink">Insight Restart</span>
           </Link>
 
@@ -150,7 +150,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             </button>
             <div className="flex items-center gap-2 rounded-lg border border-line py-1 pl-1 pr-2">
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src="/logo.svg" alt="Insight Restart" className="h-7 w-7 rounded-md" />
+              <img src="/logo.png" alt="Insight Restart" className="h-7 w-7 rounded-md" />
               <div className="hidden leading-tight sm:block">
                 <div className="text-[12.5px] font-semibold text-ink">고객센터</div>
                 <div className="max-w-[130px] truncate text-[10px] text-faint">Insight Restart</div>
