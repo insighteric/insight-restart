@@ -1,11 +1,22 @@
 <svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Insight Restart">
-  <rect width="64" height="64" rx="15" fill="#22262e"/>
-  <g fill="none" stroke="#ffffff" stroke-linecap="round">
-    <path d="M17 23 A12.5 12.5 0 0 0 17 41" stroke-width="2.4" stroke-opacity="0.9"/>
-    <path d="M12 18.5 A18.5 18.5 0 0 0 12 45.5" stroke-width="2.2" stroke-opacity="0.5"/>
-    <path d="M47 23 A12.5 12.5 0 0 1 47 41" stroke-width="2.4" stroke-opacity="0.9"/>
-    <path d="M52 18.5 A18.5 18.5 0 0 1 52 45.5" stroke-width="2.2" stroke-opacity="0.5"/>
+  <rect width="64" height="64" rx="15" fill="#272727"/>
+  <g fill="none" stroke-linecap="round">
+    <!-- left sound waves (bright -> gray outward) -->
+    <path d="M19 24 A11 11 0 0 0 19 40" stroke="#ffffff" stroke-width="2.7"/>
+    <path d="M14 21 A16 16 0 0 0 14 43" stroke="#c9c9c9" stroke-width="2.5"/>
+    <path d="M9.5 18.5 A20.5 20.5 0 0 0 9.5 45.5" stroke="#9a9a9a" stroke-width="2.3"/>
+    <!-- right sound waves -->
+    <path d="M45 24 A11 11 0 0 1 45 40" stroke="#ffffff" stroke-width="2.7"/>
+    <path d="M50 21 A16 16 0 0 1 50 43" stroke="#c9c9c9" stroke-width="2.5"/>
+    <path d="M54.5 18.5 A20.5 20.5 0 0 1 54.5 45.5" stroke="#9a9a9a" stroke-width="2.3"/>
   </g>
-  <circle cx="32" cy="32" r="13" fill="none" stroke="#ffffff" stroke-width="3.2"/>
-  <path d="M27 39.5 L27 25 L37 39.5 L37 25" fill="none" stroke="#ffffff" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"/>
+  <!-- main ring -->
+  <circle cx="32" cy="32" r="12.6" fill="none" stroke="#ffffff" stroke-width="3.4"/>
+  <!-- stylized N with top-left dot -->
+  <circle cx="26.6" cy="24.4" r="1.7" fill="#ffffff"/>
+  <g fill="none" stroke="#ffffff" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M26.4 39.4 L26.4 27" stroke-width="3.5"/>
+    <path d="M26.4 27 L37.4 39.4" stroke-width="4.6"/>
+    <path d="M37.4 39.4 L37.4 25.2" stroke-width="3.5"/>
+  </g>
 </svg>
