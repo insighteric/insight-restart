@@ -16,10 +16,10 @@ export function AppGate({ children }: { children: React.ReactNode }) {
   if (auth.configured && (auth.loading || !auth.user)) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-canvas">
-        <div className="flex flex-col items-center gap-3">
+        <div className="flex flex-col items-center gap-5">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/logo.png" alt="Insight Restart" className="h-11 w-11 animate-pulse rounded-2xl" />
-          <div className="text-[13px] text-muted">불러오는 중…</div>
+          <img src="/logo.png" alt="Insight Restart" className="h-52 w-52 animate-pulse rounded-[2rem]" />
+          <div className="text-[14px] text-muted">불러오는 중…</div>
         </div>
       </div>
     );
