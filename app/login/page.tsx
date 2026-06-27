@@ -2,7 +2,8 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { Loader2, Sparkles, ArrowLeft, Mail, KeyRound } from "lucide-react";
+import Link from "next/link";
+import { Loader2, Sparkles, ArrowLeft, Mail, KeyRound, Monitor } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import { Button, Field, Input } from "@/components/ui";
 
@@ -285,6 +286,12 @@ export default function LoginPage() {
         <p className="mt-4 text-center text-[12px] text-faint">
           {auth.configured ? "Supabase 인증으로 보호됩니다." : "데모 모드(로컬)로 실행 중입니다."}
         </p>
+        <Link
+          href="/download"
+          className="mt-3 flex items-center justify-center gap-1.5 text-[12.5px] font-medium text-muted hover:text-ink hover:underline"
+        >
+          <Monitor size={14} /> 데스크톱 앱(Windows·Mac) 다운로드
+        </Link>
       </div>
     </div>
   );

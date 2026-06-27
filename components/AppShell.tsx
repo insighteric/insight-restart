@@ -20,6 +20,7 @@ import {
   Lock,
   BarChart3,
   UserCog,
+  Download,
   Sparkles,
   Search,
   Bell,
@@ -52,6 +53,7 @@ const NAV: {
   { href: "/management", label: "경영 대시보드", icon: BarChart3, perm: "dashboard" },
   { href: "/members", label: "멤버·권한", icon: UserCog, perm: "members" },
   { href: "/tools", label: "PDF 도구", icon: Wrench },
+  { href: "/download", label: "다운로드", icon: Download },
   { href: "/settings", label: "설정·구독", icon: Settings },
 ];
 
