@@ -69,13 +69,14 @@ export function CardHeader({
   );
 }
 
-type BtnVariant = "primary" | "secondary" | "ghost" | "danger";
+type BtnVariant = "primary" | "secondary" | "ghost" | "accent" | "danger";
 const btnBase =
   "inline-flex items-center justify-center gap-1.5 rounded-lg text-sm font-semibold transition-colors disabled:opacity-50 disabled:pointer-events-none whitespace-nowrap";
 const btnVariants: Record<BtnVariant, string> = {
-  primary: "bg-brand text-white hover:bg-brand-700 active:bg-brand-700",
+  primary: "bg-ink text-white hover:bg-ink-soft active:bg-ink-soft",
   secondary: "bg-surface text-ink-soft border border-line hover:bg-surface-2",
   ghost: "text-ink-soft hover:bg-surface-2",
+  accent: "bg-brand text-[#1a1305] hover:bg-brand-600 active:bg-brand-600",
   danger: "bg-danger text-white hover:opacity-90",
 };
 const btnSizes = {

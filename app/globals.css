@@ -2,35 +2,41 @@
 @import "tailwindcss";
 
 /*
-  회생ON 디자인 시스템
-  전문적이고 차분한 리걸/핀테크 톤 — Pretendard 본문, 네이비 잉크 + 인디고 액센트
+  Insight Restart 디자인 시스템
+  Insight Academy 톤 — 다크 사이드바 + 라이트 본문 + 골드/앰버 포인트. Pretendard 본문.
 */
 
 @theme {
   --font-sans: "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont,
     system-ui, sans-serif;
 
-  --color-canvas: #f5f6f8;
+  --color-canvas: #f6f5f2;
   --color-surface: #ffffff;
-  --color-surface-2: #f8fafc;
+  --color-surface-2: #f7f6f3;
 
-  --color-ink: #0f172a;
-  --color-ink-soft: #334155;
-  --color-muted: #64748b;
-  --color-faint: #94a3b8;
+  --color-ink: #15161a;
+  --color-ink-soft: #3a3c44;
+  --color-muted: #6c6f78;
+  --color-faint: #9a9da6;
 
-  --color-line: #e6e8ec;
-  --color-line-soft: #eef1f5;
+  --color-line: #e8e6e1;
+  --color-line-soft: #f0eee9;
 
-  --color-brand-50: #eef2ff;
-  --color-brand-100: #e0e7ff;
-  --color-brand-200: #c7d2fe;
-  --color-brand-300: #a5b4fc;
-  --color-brand-500: #4f46e5;
-  --color-brand-600: #4338ca;
-  --color-brand-700: #3730a3;
-  --color-brand: #4338ca;
-  --color-brand-ink: #312e81;
+  /* 골드/앰버 액센트 */
+  --color-brand-50: #faf5e9;
+  --color-brand-100: #f1e7cb;
+  --color-brand-200: #e6d3a1;
+  --color-brand-300: #d8bd76;
+  --color-brand-500: #c2a45c;
+  --color-brand-600: #ab8e49;
+  --color-brand-700: #876d36;
+  --color-brand: #b6934f;
+  --color-brand-ink: #574818;
+
+  /* 다크 사이드바 */
+  --color-sidebar: #0f1115;
+  --color-sidebar-2: #171a20;
+  --color-sidebar-line: #23262e;
 
   --color-success: #047857;
   --color-success-bg: #ecfdf5;

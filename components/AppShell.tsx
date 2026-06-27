@@ -17,6 +17,7 @@ import {
   Wallet,
   ListChecks,
   LifeBuoy,
+  Lock,
   Sparkles,
   Search,
   Bell,
@@ -61,17 +62,17 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex min-h-screen bg-canvas">
       {/* Sidebar */}
-      <aside className="sticky top-0 hidden h-screen w-60 shrink-0 flex-col border-r border-line bg-surface lg:flex">
-        <div className="flex h-16 items-center gap-2 px-5">
+      <aside className="sticky top-0 hidden h-screen w-60 shrink-0 flex-col border-r border-sidebar-line bg-sidebar text-white lg:flex">
+        <div className="flex h-16 items-center gap-2.5 px-5">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/logo.png" alt="Insight Restart" className="h-8 w-8 rounded-lg" />
+          <img src="/logo.png" alt="Insight Restart" className="h-9 w-9 rounded-lg" />
           <div className="leading-tight">
-            <div className="text-[15px] font-extrabold tracking-tight text-ink">Insight Restart</div>
-            <div className="text-[10px] font-medium text-faint">개인회생·파산 AI 실무</div>
+            <div className="text-[15px] font-extrabold tracking-tight text-white">Insight Restart</div>
+            <div className="text-[10px] font-semibold text-brand-300">개인회생·파산 AI 실무</div>
           </div>
         </div>
 
-        <nav className="flex-1 space-y-0.5 px-3 py-2">
+        <nav className="flex-1 space-y-0.5 overflow-y-auto px-3 py-2">
           {nav.map((item) => {
             const active = pathname === item.href || pathname.startsWith(item.href + "/");
             const Icon = item.icon;
@@ -81,33 +82,32 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 href={item.href}
                 className={`group flex items-center gap-2.5 rounded-lg px-3 py-2 text-[13.5px] font-medium transition-colors ${
                   active
-                    ? "bg-brand-50 text-brand-700"
-                    : "text-ink-soft hover:bg-surface-2 hover:text-ink"
+                    ? "bg-white/10 text-white"
+                    : "text-[#a7adba] hover:bg-white/5 hover:text-white"
                 }`}
               >
-                <Icon size={17} className={active ? "text-brand" : "text-faint group-hover:text-muted"} />
+                <Icon size={17} className={active ? "text-brand-300" : "text-[#6e7686] group-hover:text-[#a7adba]"} />
                 <span className="flex-1">{item.label}</span>
-                {item.ai && (
-                  <Sparkles size={13} className={active ? "text-brand" : "text-brand-300"} />
-                )}
+                {item.admin && <Lock size={11} className="text-[#6e7686]" />}
+                {item.ai && <Sparkles size={13} className="text-brand-300" />}
               </Link>
             );
           })}
         </nav>
 
-        <div className="m-3 rounded-xl border border-line bg-surface-2 p-3.5">
+        <div className="m-3 rounded-xl border border-sidebar-line bg-sidebar-2 p-3.5">
           <div className="flex items-center justify-between">
-            <span className="text-[13px] font-semibold text-ink">{tierLabel[subscription.tier]} 플랜</span>
+            <span className="text-[13px] font-semibold text-white">{tierLabel[subscription.tier]} 플랜</span>
             <Badge tone="brand">구독중</Badge>
           </div>
           <div className="mt-2.5">
-            <div className="flex items-center justify-between text-[11px] text-muted">
+            <div className="flex items-center justify-between text-[11px] text-[#a7adba]">
               <span>AI 크레딧</span>
               <span className="tnum">
                 {subscription.aiCreditsUsed} / {subscription.aiCreditsLimit}
               </span>
             </div>
-            <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-line">
+            <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-white/10">
               <div
                 className="h-full rounded-full bg-brand"
                 style={{
@@ -118,7 +118,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           </div>
           <Link
             href="/settings"
-            className="mt-3 flex items-center justify-center gap-1 rounded-lg bg-brand py-1.5 text-xs font-semibold text-white hover:bg-brand-700"
+            className="mt-3 flex items-center justify-center gap-1 rounded-lg bg-brand py-1.5 text-xs font-bold text-[#1a1305] hover:bg-brand-600"
           >
             플랜 업그레이드 <ChevronRight size={13} />
           </Link>
