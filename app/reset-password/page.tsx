@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { Scale, Loader2, KeyRound, Check, ArrowLeft } from "lucide-react";
+import { Loader2, KeyRound, Check, ArrowLeft } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import { Button, Field, Input } from "@/components/ui";
 
@@ -52,11 +52,10 @@ export default function ResetPasswordPage() {
     <div className="flex min-h-screen items-center justify-center bg-canvas px-4">
       <div className="w-full max-w-sm">
         <div className="mb-6 flex flex-col items-center gap-2 text-center">
-          <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-brand text-white">
-            <Scale size={24} />
-          </div>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/logo.svg" alt="Insight Restart" className="h-12 w-12 rounded-2xl" />
           <div>
-            <div className="text-xl font-extrabold tracking-tight text-ink">회생ON</div>
+            <div className="text-xl font-extrabold tracking-tight text-ink">Insight Restart</div>
             <div className="text-[12px] text-muted">비밀번호 재설정</div>
           </div>
         </div>

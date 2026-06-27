@@ -4,9 +4,10 @@ import { StoreProvider } from "@/lib/store";
 import { AuthProvider } from "@/lib/auth";
 
 export const metadata: Metadata = {
-  title: "회생ON — 개인회생·파산 AI 실무 플랫폼",
+  title: "Insight Restart — 개인회생·파산 AI 실무 플랫폼",
   description:
     "상담부터 신청서·보정·변제·면책까지. 개인회생·파산 업무 전 과정을 AI로 빠르고 정확하게 처리하는 실무자용 구독 서비스.",
+  icons: { icon: "/logo.svg" },
 };
 
 export default function RootLayout({

@@ -102,7 +102,7 @@ export default function ChecklistPage() {
     });
     const lines = pending.map((d) => `▢ ${d.name} — ${d.issuer}${d.url ? ` (${d.url})` : ""}`);
     const text =
-      `[회생ON] ${client?.name ?? "의뢰인"}님 준비서류 안내\n` +
+      `[Insight Restart] ${client?.name ?? "의뢰인"}님 준비서류 안내\n` +
       `아래 서류를 발급·준비해 주세요.\n\n` +
       (lines.length ? lines.join("\n") : "준비할 서류가 없습니다.") +
       `\n\n※ 온라인 발급처는 공동인증서(공인인증서)로 본인 발급 가능합니다.`;

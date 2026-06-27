@@ -55,7 +55,7 @@ const tierLabel: Record<string, string> = { free: "Free", pro: "Pro", team: "Tea
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const { subscription } = useStore();
-  const { firmName, configured, signOut, isAdmin } = useAuth();
+  const { configured, signOut, isAdmin } = useAuth();
   const nav = NAV.filter((item) => !item.admin || isAdmin);
 
   return (
@@ -63,11 +63,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       {/* Sidebar */}
       <aside className="sticky top-0 hidden h-screen w-60 shrink-0 flex-col border-r border-line bg-surface lg:flex">
         <div className="flex h-16 items-center gap-2 px-5">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-brand text-white">
-            <Scale size={18} />
-          </div>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/logo.svg" alt="Insight Restart" className="h-8 w-8 rounded-lg" />
           <div className="leading-tight">
-            <div className="text-[15px] font-extrabold tracking-tight text-ink">회생ON</div>
+            <div className="text-[15px] font-extrabold tracking-tight text-ink">Insight Restart</div>
             <div className="text-[10px] font-medium text-faint">개인회생·파산 AI 실무</div>
           </div>
         </div>
@@ -131,10 +130,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         <header className="sticky top-0 z-20 flex h-16 items-center gap-3 border-b border-line bg-surface/85 px-5 backdrop-blur">
           {/* mobile brand */}
           <Link href="/dashboard" className="flex items-center gap-2 lg:hidden">
-            <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-brand text-white">
-              <Scale size={15} />
-            </div>
-            <span className="font-extrabold text-ink">회생ON</span>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/logo.svg" alt="Insight Restart" className="h-7 w-7 rounded-lg" />
+            <span className="font-extrabold text-ink">Insight Restart</span>
           </Link>
 
           <div className="relative hidden flex-1 sm:block">
@@ -151,12 +149,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               <span className="absolute right-2 top-2 h-1.5 w-1.5 rounded-full bg-danger" />
             </button>
             <div className="flex items-center gap-2 rounded-lg border border-line py-1 pl-1 pr-2">
-              <div className="flex h-7 w-7 items-center justify-center rounded-md bg-brand-100 text-xs font-bold text-brand-700">
-                {(firmName ?? "회")[0]}
-              </div>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src="/logo.svg" alt="Insight Restart" className="h-7 w-7 rounded-md" />
               <div className="hidden leading-tight sm:block">
-                <div className="text-[12.5px] font-semibold text-ink">담당 사무장</div>
-                <div className="max-w-[130px] truncate text-[10px] text-faint">{firmName ?? "회생ON 법무사무소"}</div>
+                <div className="text-[12.5px] font-semibold text-ink">고객센터</div>
+                <div className="max-w-[130px] truncate text-[10px] text-faint">Insight Restart</div>
               </div>
               {configured && (
                 <button

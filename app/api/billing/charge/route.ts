@@ -22,7 +22,7 @@ export async function POST(request: Request) {
       customerKey,
       amount,
       orderId: `hsn_${plan}_${Date.now()}`,
-      orderName: `회생ON ${plan.toUpperCase()} 월 구독`,
+      orderName: `Insight Restart ${plan.toUpperCase()} 월 구독`,
       customerEmail,
     });
     return Response.json({ ok: true, status: data.status, approvedAt: data.approvedAt, amount });

@@ -12,7 +12,7 @@ export const DEFAULT_MEDIAN_INCOME: Record<number, number> = {
 };
 
 export const DEFAULT_SETTINGS: Settings = {
-  firmName: "회생ON 법무사무소",
+  firmName: "Insight Restart",
   medianIncomeByHousehold: DEFAULT_MEDIAN_INCOME,
   livingCostRatio: 0.6, // 기준 중위소득의 60%
   baseYear: 2025,
