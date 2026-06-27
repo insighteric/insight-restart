@@ -115,9 +115,11 @@ export default function DownloadPage() {
 
         <div className="mt-6 flex items-start gap-2 rounded-xl border border-line bg-surface-2 p-4 text-[12.5px] text-muted">
           <Info size={15} className="mt-0.5 shrink-0 text-brand" />
-          <p>
-            네이티브 설치파일(.exe/.dmg)은 준비되는 대로 위 버튼에서 받을 수 있습니다. 그동안에는 <b>‘앱으로 설치(PWA)’</b>로 데스크톱에서 동일하게 사용하실 수 있어요.
-          </p>
+          <div className="space-y-1">
+            <p><b>설치 시 보안 경고 안내</b> — 아직 코드 서명 전이라 처음 실행 시 경고가 나올 수 있습니다(안전합니다).</p>
+            <p>· <b>Windows</b>: “Windows의 PC 보호” 창 → <b>추가 정보 → 실행</b></p>
+            <p>· <b>macOS</b>: 앱을 <b>우클릭 → 열기</b> (또는 시스템 설정 → 개인정보 보호 및 보안 → “확인 없이 열기”). 현재 <b>Apple Silicon(M1~)</b> 전용이며 Intel Mac은 추후 추가됩니다.</p>
+          </div>
         </div>
       </main>
     </div>
