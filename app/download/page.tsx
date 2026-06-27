@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Download, Monitor, Apple, ArrowLeft, Check, Globe, Info, Loader2 } from "lucide-react";
 import { Button, Card, Badge } from "@/components/ui";
-import { DOWNLOADS } from "@/lib/downloads";
+import { DOWNLOADS, RELEASES_URL } from "@/lib/downloads";
 
 type OS = "windows" | "mac" | "other";
 
@@ -149,7 +149,12 @@ function PlatformCard({
             )}
           </>
         ) : (
-          <Button className="w-full" size="lg" variant="secondary" disabled>준비 중</Button>
+          <>
+            <Button className="w-full" size="lg" variant="secondary" disabled>준비 중</Button>
+            <a href={RELEASES_URL} target="_blank" rel="noopener noreferrer" className="text-[12px] font-medium text-brand hover:underline">
+              GitHub 릴리스에서 받기
+            </a>
+          </>
         )}
       </div>
     </Card>

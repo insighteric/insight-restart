@@ -9,3 +9,6 @@ export const DOWNLOADS = {
 };
 
 export const hasAnyDownload = () => !!(DOWNLOADS.windows || DOWNLOADS.mac || DOWNLOADS.macIntel);
+
+// GitHub Actions가 빌드해 게시하는 최신 릴리스(설치파일) 페이지
+export const RELEASES_URL = "https://github.com/insighteric/insight-restart/releases/latest";

@@ -1,0 +1,38 @@
+name: Desktop Build
+
+# v로 시작하는 태그를 push하면 Windows(.exe)·macOS(.dmg)를 빌드해
+# GitHub Releases(해당 태그)에 자동 업로드합니다.
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install dependencies
+        working-directory: desktop
+        run: npm install
+
+      - name: Build & publish (electron-builder)
+        working-directory: desktop
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # 코드 서명 비활성화(미서명 빌드). 추후 인증서 준비 시 제거.
+          CSC_IDENTITY_AUTO_DISCOVERY: "false"
+        run: npx --no-install electron-builder --publish always
