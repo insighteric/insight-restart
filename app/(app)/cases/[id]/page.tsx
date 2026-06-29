@@ -1,8 +1,10 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
+import { useAuth } from "@/lib/auth";
+import { getSupabase } from "@/lib/supabase";
 import {
   ArrowLeft,
   Phone,
@@ -396,6 +398,17 @@ const selCls = "h-9.5 w-full rounded-lg border border-line bg-surface px-2 text-
 function IncomeEditor({ caseId }: { caseId: string }) {
   const store = useStore();
   const c = store.caseById(caseId)!;
+  const { firmId, configured } = useAuth();
+  const [memberNames, setMemberNames] = useState<string[]>([]);
+  useEffect(() => {
+    if (!configured || !firmId) return;
+    const sb = getSupabase();
+    if (!sb) return;
+    sb.from("members").select("name").eq("firm_id", firmId).then(({ data }) => {
+      if (data) setMemberNames(data.map((m) => m.name).filter(Boolean) as string[]);
+    });
+  }, [configured, firmId]);
+  const assigneeOptions = Array.from(new Set([...(c.assignee ? [c.assignee] : []), ...memberNames]));
   const setIncome = (patch: Partial<IncomeExpense>) => store.updateCase(caseId, { income: { ...c.income, ...patch } });
   const types: { v: IncomeExpense["incomeType"]; l: string }[] = [
     { v: "salary", l: "근로" }, { v: "business", l: "사업" }, { v: "freelance", l: "프리랜서" }, { v: "mixed", l: "혼합" },
@@ -425,6 +438,16 @@ function IncomeEditor({ caseId }: { caseId: string }) {
         </Field>
         <Field label="사건번호">
           <Input value={c.caseNo ?? ""} placeholder="예: 2026개회12345" onChange={(e) => store.updateCase(caseId, { caseNo: e.target.value })} />
+        </Field>
+        <Field label="담당자">
+          {assigneeOptions.length > 0 ? (
+            <select className={selCls} value={c.assignee ?? ""} onChange={(e) => store.updateCase(caseId, { assignee: e.target.value })}>
+              <option value="">미지정</option>
+              {assigneeOptions.map((n) => <option key={n} value={n}>{n}</option>)}
+            </select>
+          ) : (
+            <Input value={c.assignee ?? ""} placeholder="담당 직원 이름" onChange={(e) => store.updateCase(caseId, { assignee: e.target.value })} />
+          )}
         </Field>
       </div>
     </Card>

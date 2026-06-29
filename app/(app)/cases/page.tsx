@@ -18,17 +18,21 @@ export default function CasesPage() {
   const { cases, clientById } = useStore();
   const [filter, setFilter] = useState<Filter>("all");
   const [q, setQ] = useState("");
+  const [assignee, setAssignee] = useState("all");
   const [open, setOpen] = useState(false);
+
+  const assignees = useMemo(() => Array.from(new Set(cases.map((c) => c.assignee).filter(Boolean))), [cases]);
 
   const filtered = useMemo(() => {
     return cases.filter((c) => {
       if (filter !== "all" && c.type !== filter) return false;
+      if (assignee !== "all" && c.assignee !== assignee) return false;
       if (!q) return true;
       const cl = clientById(c.clientId);
       const hay = `${cl?.name} ${cl?.phone} ${c.court} ${c.caseNo ?? ""}`.toLowerCase();
       return hay.includes(q.toLowerCase());
     });
-  }, [cases, filter, q, clientById]);
+  }, [cases, filter, assignee, q, clientById]);
 
   const tabs: { key: Filter; label: string; count: number }[] = [
     { key: "all", label: "전체", count: cases.length },
@@ -63,14 +67,27 @@ export default function CasesPage() {
             </button>
           ))}
         </div>
-        <div className="relative w-full sm:w-64">
-          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-faint" />
-          <input
-            value={q}
-            onChange={(e) => setQ(e.target.value)}
-            placeholder="의뢰인·법원·사건번호"
-            className="h-9.5 w-full rounded-lg border border-line bg-surface pl-9 pr-3 text-sm outline-none focus:border-brand-300 focus:ring-2 focus:ring-brand-100"
-          />
+        <div className="flex items-center gap-2">
+          {assignees.length > 0 && (
+            <select
+              value={assignee}
+              onChange={(e) => setAssignee(e.target.value)}
+              className="h-9.5 rounded-lg border border-line bg-surface px-2.5 text-[13px] text-ink-soft outline-none focus:border-brand-300 focus:ring-2 focus:ring-brand-100"
+              title="담당자 필터"
+            >
+              <option value="all">담당자 전체</option>
+              {assignees.map((a) => <option key={a} value={a}>{a}</option>)}
+            </select>
+          )}
+          <div className="relative w-full sm:w-64">
+            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-faint" />
+            <input
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+              placeholder="의뢰인·법원·사건번호"
+              className="h-9.5 w-full rounded-lg border border-line bg-surface pl-9 pr-3 text-sm outline-none focus:border-brand-300 focus:ring-2 focus:ring-brand-100"
+            />
+          </div>
         </div>
       </div>
 

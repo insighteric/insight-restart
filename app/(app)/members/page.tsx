@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { UserCog, Lock, ShieldCheck, User as UserIcon, Loader2, Info, UserPlus, Copy, Check, Ban } from "lucide-react";
+import { UserCog, Lock, ShieldCheck, User as UserIcon, Loader2, Info, UserPlus, Copy, Check, Ban, Activity } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import { getSupabase } from "@/lib/supabase";
 import { PageHeader } from "@/components/AppShell";
@@ -147,9 +147,64 @@ export default function MembersPage() {
           </Card>
 
           {members.some((m) => m.id === user?.id && m.role === "owner") && <InviteSection />}
+          <MemberActivity />
         </div>
       )}
     </div>
+  );
+}
+
+interface ActRow { member_id: string; name: string | null; email: string | null; role: string; logins: number; features: number; last_active: string | null }
+function MemberActivity() {
+  const [rows, setRows] = useState<ActRow[] | null>(null);
+  const [err, setErr] = useState<string | null>(null);
+  useEffect(() => {
+    const sb = getSupabase();
+    if (!sb) { setRows([]); return; }
+    sb.rpc("firm_member_activity", { p_days: 30 }).then(({ data, error }) => {
+      if (error) setErr(error.message); else setRows((data ?? []) as ActRow[]);
+    });
+  }, []);
+  const ago = (s: string | null) => {
+    if (!s) return "기록 없음";
+    const d = Math.floor((Date.now() - new Date(s).getTime()) / 86400000);
+    return d <= 0 ? "오늘" : `${d}일 전`;
+  };
+  return (
+    <Card>
+      <CardHeader title="직원별 활동 · 실적" desc="최근 30일 — 로그인·기능 사용·마지막 접속" action={<Activity size={15} className="text-brand" />} />
+      {rows === null ? (
+        <div className="flex items-center gap-2 px-5 py-8 text-muted"><Loader2 size={16} className="animate-spin" /> 불러오는 중…</div>
+      ) : err ? (
+        <div className="px-5 py-4 text-[13px] text-danger">{err}</div>
+      ) : (
+        <div className="overflow-x-auto">
+          <table className="w-full text-[13px]">
+            <thead>
+              <tr className="border-b border-line-soft text-left text-[11px] uppercase tracking-wide text-faint">
+                <th className="px-5 py-2.5 font-semibold">직원</th>
+                <th className="px-3 py-2.5 text-right font-semibold">로그인</th>
+                <th className="px-3 py-2.5 text-right font-semibold">기능 사용</th>
+                <th className="px-5 py-2.5 text-right font-semibold">마지막 접속</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-line-soft">
+              {rows.map((r) => (
+                <tr key={r.member_id} className="hover:bg-surface-2">
+                  <td className="px-5 py-2.5">
+                    <span className="font-medium text-ink">{r.name || r.email}</span>
+                    {r.role === "owner" && <Badge tone="brand">관리자</Badge>}
+                  </td>
+                  <td className="px-3 py-2.5 text-right tabular-nums text-ink-soft">{r.logins}</td>
+                  <td className="px-3 py-2.5 text-right tabular-nums text-ink-soft">{r.features}</td>
+                  <td className="px-5 py-2.5 text-right text-muted">{ago(r.last_active)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </Card>
   );
 }
 
