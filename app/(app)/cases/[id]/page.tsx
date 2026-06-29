@@ -22,6 +22,8 @@ import {
   Check,
   Download,
   FileText,
+  FileSignature,
+  Printer,
 } from "lucide-react";
 import { useStore } from "@/lib/store";
 import { Card, CardHeader, Badge, Button, EmptyState, Stat, Field, Input } from "@/components/ui";
@@ -142,6 +144,7 @@ export default function CaseDetailPage() {
         <div className="space-y-4">
         <CaseUploads caseId={c.id} />
         <ShareManager caseId={c.id} />
+        <AgreementManager caseId={c.id} />
         <div className="grid gap-4 lg:grid-cols-2">
           <Card>
             <CardHeader title="일정·기한" action={<Link href="/schedule" className="text-[13px] font-semibold text-brand hover:underline">관리</Link>} />
@@ -458,6 +461,96 @@ function IncomeEditor({ caseId }: { caseId: string }) {
             <Input value={c.assignee ?? ""} placeholder="담당 직원 이름" onChange={(e) => store.updateCase(caseId, { assignee: e.target.value })} />
           )}
         </Field>
+      </div>
+    </Card>
+  );
+}
+
+const AG_KIND: { v: string; l: string }[] = [
+  { v: "mandate", l: "위임장" }, { v: "contract", l: "수임계약서" }, { v: "consent", l: "개인정보 동의서" },
+];
+const AG_LABEL: Record<string, string> = { mandate: "위임장", contract: "수임계약서", consent: "개인정보 동의서" };
+function agreementBody(kind: string, client: string, firm: string, caseType: string) {
+  if (kind === "contract") {
+    return `${firm} 수임계약서\n\n의뢰인: ${client}\n수임인(사무소): ${firm}\n사건: ${caseType}\n\n1. 의뢰인은 ${caseType} 사건의 처리를 수임인에게 위임하고, 수임인은 이를 성실히 수행한다.\n2. 수임료 및 납입 방식은 별도 협의에 따른다.\n3. 의뢰인은 사건 처리에 필요한 자료를 성실히 제공한다.\n4. 본 계약 내용에 동의하며 전자적으로 서명한다.`;
+  }
+  if (kind === "consent") {
+    return `개인정보 수집·이용 동의서\n\n본인(${client})은 ${firm}이 ${caseType} 사건 처리를 위하여 아래와 같이 개인정보를 수집·이용하는 것에 동의합니다.\n\n- 수집 항목: 성명, 연락처, 주민등록번호, 소득·재산·채무 관련 정보 등\n- 이용 목적: 회생·파산 사건의 상담·신청·진행\n- 보유 기간: 사건 종결 후 관계 법령이 정한 기간\n\n위 내용에 동의하며 전자적으로 서명합니다.`;
+  }
+  return `위 임 장\n\n위임인(의뢰인): ${client}\n수임인(사무소): ${firm}\n\n위임인은 수임인에게 ${caseType} 사건에 관하여 다음 각 호의 권한을 위임합니다.\n\n1. 신청서·진술서 등 일체 서류의 작성 및 제출\n2. 법원·기관에 대한 보정 대응 및 자료 제출\n3. 채권자목록·재산목록 등 작성에 필요한 행위\n4. 기타 위 사건 처리에 부수하는 일체의 행위\n\n위 위임 내용에 동의하며 전자적으로 서명합니다.`;
+}
+
+interface Agreement { id: number; token: string; kind: string; title: string; status: string; signer_name: string | null; signed_at: string | null; signature_data: string | null; body: string; created_at: string }
+function AgreementManager({ caseId }: { caseId: string }) {
+  const store = useStore();
+  const c = store.caseById(caseId)!;
+  const client = store.clientById(c.clientId);
+  const { firmId, firmName, configured } = useAuth();
+  const [rows, setRows] = useState<Agreement[] | null>(null);
+  const [kind, setKind] = useState("mandate");
+  const [busy, setBusy] = useState(false);
+  const [copied, setCopied] = useState<number | null>(null);
+  const load = useCallback(async () => {
+    const sb = getSupabase();
+    if (!sb || !firmId) return;
+    const { data } = await sb.from("case_agreements").select("id,token,kind,title,status,signer_name,signed_at,signature_data,body,created_at").eq("case_id", caseId).order("created_at", { ascending: false });
+    setRows((data ?? []) as Agreement[]);
+  }, [firmId, caseId]);
+  useEffect(() => { load(); }, [load]);
+
+  const create = async () => {
+    setBusy(true);
+    const sb = getSupabase();
+    const caseType = c.type === "rehab" ? "개인회생" : "개인파산";
+    await sb!.from("case_agreements").insert({
+      firm_id: firmId, case_id: caseId, kind, title: AG_LABEL[kind],
+      body: agreementBody(kind, client?.name ?? "의뢰인", firmName ?? "사무소", caseType),
+    });
+    await load(); setBusy(false);
+  };
+  const remove = async (id: number) => { const sb = getSupabase(); await sb!.from("case_agreements").delete().eq("id", id); await load(); };
+  const linkOf = (t: string) => (typeof window !== "undefined" ? `${window.location.origin}/sign/${t}` : "");
+  const copy = async (a: Agreement) => { await navigator.clipboard.writeText(linkOf(a.token)); setCopied(a.id); setTimeout(() => setCopied(null), 1500); };
+  const printSigned = (a: Agreement) => {
+    const w = window.open("", "_blank");
+    if (!w) return;
+    const when = a.signed_at ? new Date(a.signed_at).toLocaleString("ko-KR") : "";
+    w.document.write(`<html><head><meta charset="utf-8"><title>${a.title}</title><style>body{font-family:-apple-system,Segoe UI,sans-serif;padding:40px;max-width:720px;margin:auto;color:#111}pre{white-space:pre-wrap;font-family:inherit;font-size:14px;line-height:1.75}.sig{margin-top:36px;border-top:1px solid #ccc;padding-top:16px;font-size:13px}img{height:90px;display:block;margin-top:8px}</style></head><body><pre>${a.body.replace(/</g, "&lt;")}</pre><div class="sig"><div>서명자: ${a.signer_name ?? ""} · ${when}</div><img src="${a.signature_data ?? ""}"/></div></body></html>`);
+    w.document.close(); w.focus(); w.print();
+  };
+  if (!configured) return null;
+
+  return (
+    <Card>
+      <CardHeader title="비대면 전자계약 · 위임장" desc="링크를 보내면 의뢰인이 모바일에서 내용 확인 후 서명합니다." action={<FileSignature size={15} className="text-brand" />} />
+      <div className="space-y-3 p-5">
+        <div className="flex flex-wrap items-center gap-2">
+          <select value={kind} onChange={(e) => setKind(e.target.value)} className="h-9 rounded-lg border border-line bg-surface px-2.5 text-[13px] text-ink-soft outline-none focus:border-brand-300">
+            {AG_KIND.map((k) => <option key={k.v} value={k.v}>{k.l}</option>)}
+          </select>
+          <Button size="sm" onClick={create} disabled={busy}>{busy ? <Loader2 size={13} className="animate-spin" /> : <FileSignature size={13} />} 서명 요청 생성</Button>
+        </div>
+        {rows && rows.length > 0 && (
+          <ul className="space-y-2">
+            {rows.map((a) => (
+              <li key={a.id} className="rounded-lg border border-line-soft p-3">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-[13px] font-semibold text-ink">{a.title}</span>
+                  <Badge tone={a.status === "signed" ? "success" : "warning"}>{a.status === "signed" ? "서명완료" : "서명대기"}</Badge>
+                  {a.status === "signed" && <span className="text-[11px] text-faint">{a.signer_name} · {a.signed_at?.slice(0, 10)}</span>}
+                  <div className="ml-auto flex items-center gap-1">
+                    {a.status === "signed" ? (
+                      <button onClick={() => printSigned(a)} className="inline-flex h-8 items-center gap-1 rounded-lg border border-line px-2.5 text-[12px] font-medium text-brand-700 hover:bg-brand-50"><Printer size={13} /> 인쇄/PDF</button>
+                    ) : (
+                      <button onClick={() => copy(a)} className="inline-flex h-8 items-center gap-1 rounded-lg border border-line px-2.5 text-[12px] font-medium text-muted hover:bg-surface-2">{copied === a.id ? <Check size={13} className="text-success" /> : <Copy size={13} />} {copied === a.id ? "복사됨" : "링크 복사"}</button>
+                    )}
+                    <button onClick={() => remove(a.id)} title="삭제" className="flex h-8 w-8 items-center justify-center rounded-lg text-faint hover:bg-surface-2 hover:text-danger"><Trash2 size={14} /></button>
+                  </div>
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
       </div>
     </Card>
   );
