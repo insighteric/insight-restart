@@ -12,7 +12,7 @@ import {
 } from "lucide-react";
 import { useStore } from "@/lib/store";
 import { PageHeader } from "@/components/AppShell";
-import { Card, CardHeader, Stat, Badge, Button } from "@/components/ui";
+import { Card, CardHeader, Stat, Badge, Button, Donut } from "@/components/ui";
 import { CaseTypeBadge, CaseStatusBadge } from "@/components/CaseBits";
 import {
   formatDate,
@@ -37,6 +37,13 @@ export default function DashboardPage() {
     const now = new Date();
     return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
   });
+
+  const totalCases = cases.length || 1;
+  const activeRatio = Math.round((activeCases.length / totalCases) * 100);
+  const closedRatio = Math.round((cases.filter((c) => c.status === "won" || c.status === "closed").length / totalCases) * 100);
+  const corrItems = corrections.flatMap((c) => c.items);
+  const corrDoneN = corrItems.filter((i) => i.done).length;
+  const corrDone = corrItems.length ? Math.round((corrDoneN / corrItems.length) * 100) : 0;
 
   return (
     <div>
@@ -77,11 +84,21 @@ export default function DashboardPage() {
         </Card>
       </div>
 
+      {/* 도넛 현황 요약 */}
+      <Card className="mt-4">
+        <CardHeader title={<span className="flex items-center gap-1.5"><TrendingUp size={16} className="text-brand" /> 현황 요약</span>} desc="사건·보정 진행 비율" />
+        <div className="grid grid-cols-3 gap-2 p-5">
+          <DonutCell value={activeRatio} tone="brand" label="진행 중 사건" sub={`${activeCases.length}/${cases.length}건`} />
+          <DonutCell value={corrDone} tone="success" label="보정 처리율" sub={`${corrDoneN}/${corrItems.length}항목`} />
+          <DonutCell value={closedRatio} tone="info" label="완결 비율" sub="인가·종결" />
+        </div>
+      </Card>
+
       <div className="mt-4 grid gap-4 lg:grid-cols-3">
         {/* 임박 기한 */}
         <Card className="lg:col-span-2">
           <CardHeader
-            title="임박한 기한"
+            title={<span className="flex items-center gap-1.5"><CalendarClock size={16} className="text-brand" /> 임박한 기한</span>}
             desc="기한이 가까운 순으로 정렬됩니다."
             action={
               <Link href="/schedule" className="text-[13px] font-semibold text-brand hover:underline">
@@ -131,7 +148,7 @@ export default function DashboardPage() {
         {/* 보정 진행 현황 */}
         <Card>
           <CardHeader
-            title="보정 진행"
+            title={<span className="flex items-center gap-1.5"><ClipboardCheck size={16} className="text-brand" /> 보정 진행</span>}
             action={
               <Link href="/corrections" className="text-[13px] font-semibold text-brand hover:underline">
                 처리
@@ -181,7 +198,7 @@ export default function DashboardPage() {
       {/* 최근 사건 */}
       <Card className="mt-4">
         <CardHeader
-          title="최근 사건"
+          title={<span className="flex items-center gap-1.5"><Scale size={16} className="text-brand" /> 최근 사건</span>}
           action={
             <Link href="/cases" className="text-[13px] font-semibold text-brand hover:underline">
               사건 관리
@@ -223,6 +240,18 @@ export default function DashboardPage() {
       <p className="mt-6 flex items-center justify-center gap-1.5 text-xs text-faint">
         <TrendingUp size={13} /> 데모 데이터로 동작 중입니다. 실제 사건을 추가하면 즉시 반영됩니다.
       </p>
+    </div>
+  );
+}
+
+function DonutCell({ value, tone, label, sub }: { value: number; tone: "brand" | "success" | "info"; label: string; sub: string }) {
+  return (
+    <div className="flex flex-col items-center gap-2">
+      <Donut value={value} tone={tone} size={86} />
+      <div className="text-center">
+        <div className="text-[12.5px] font-semibold text-ink">{label}</div>
+        <div className="text-[11px] text-faint">{sub}</div>
+      </div>
     </div>
   );
 }
