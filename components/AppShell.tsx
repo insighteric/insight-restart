@@ -33,6 +33,7 @@ import { useState } from "react";
 import { useStore } from "@/lib/store";
 import { useAuth } from "@/lib/auth";
 import { useAnnouncements } from "@/lib/announcements";
+import { InquiryDialog } from "./InquiryDialog";
 import { Badge } from "./ui";
 
 const bannerToneClass: Record<string, string> = {
@@ -78,16 +79,17 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const banner = anns.find((a) => a.kind === "banner");
   const [noticeOpen, setNoticeOpen] = useState(false);
   const [bannerHide, setBannerHide] = useState(false);
+  const [inquiryOpen, setInquiryOpen] = useState(false);
 
   return (
     <div className="flex min-h-screen bg-canvas">
       {/* Sidebar */}
-      <aside className="sticky top-0 hidden h-screen w-60 shrink-0 flex-col border-r border-sidebar-line bg-sidebar text-white lg:flex">
-        <div className="flex h-16 items-center gap-2.5 px-5">
+      <aside className="sticky top-0 hidden h-screen w-64 shrink-0 flex-col border-r border-sidebar-line bg-sidebar text-white lg:flex">
+        <div className="flex h-16 items-center gap-2 px-4">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/logo.png" alt="Insight Restart" className="h-9 w-9 rounded-lg" />
+          <img src="/logo.png" alt="Insight Restart" className="h-8 w-8 shrink-0 rounded-lg" />
           <div className="leading-tight">
-            <div className="text-[15px] font-extrabold tracking-tight text-white">Insight Restart</div>
+            <div className="whitespace-nowrap text-[15px] font-extrabold tracking-tight text-white">Insight Restart</div>
             <div className="text-[10px] font-semibold text-brand-300">개인회생·파산 AI 실무</div>
           </div>
           {anyAdmin && (
@@ -235,26 +237,27 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 </>
               )}
             </div>
-            <div className="flex items-center gap-2 rounded-lg border border-line py-1 pl-1 pr-2">
+            <button
+              onClick={() => setInquiryOpen(true)}
+              title="고객센터 문의하기"
+              className="flex items-center gap-2 rounded-lg border border-line py-1 pl-1 pr-2.5 transition-colors hover:border-brand-300 hover:bg-surface-2"
+            >
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src="/logo.png" alt="Insight Restart" className="h-7 w-7 rounded-md" />
-              <div className="hidden leading-tight sm:block">
-                <div className="flex items-center gap-1 text-[12.5px] font-semibold text-ink">
-                  {firmName ?? "Insight Restart"}
-                  {superAdmin && <span className="rounded bg-brand px-1 text-[9px] font-extrabold text-[#1a1305]">운영자</span>}
-                </div>
-                <div className="max-w-[150px] truncate text-[10px] text-faint">{configured ? (user?.email ?? "로그인 필요") : "데모 모드"}</div>
+              <img src="/logo.png" alt="고객센터" className="h-7 w-7 rounded-md" />
+              <div className="hidden text-left leading-tight sm:block">
+                <div className="text-[12.5px] font-semibold text-ink">고객센터</div>
+                <div className="text-[10px] text-faint">문의하기</div>
               </div>
-              {configured && (
-                <button
-                  onClick={signOut}
-                  title="로그아웃"
-                  className="ml-1 flex h-7 w-7 items-center justify-center rounded-md text-faint hover:bg-surface-2 hover:text-danger"
-                >
-                  <LogOut size={15} />
-                </button>
-              )}
-            </div>
+            </button>
+            {configured && (
+              <button
+                onClick={signOut}
+                title="로그아웃"
+                className="flex h-9.5 w-9.5 items-center justify-center rounded-lg border border-line text-muted hover:bg-surface-2 hover:text-danger"
+              >
+                <LogOut size={17} />
+              </button>
+            )}
           </div>
         </header>
 
@@ -285,6 +288,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           <div className="mx-auto w-full max-w-6xl animate-in">{children}</div>
         </main>
       </div>
+
+      <InquiryDialog open={inquiryOpen} onClose={() => setInquiryOpen(false)} />
     </div>
   );
 }
