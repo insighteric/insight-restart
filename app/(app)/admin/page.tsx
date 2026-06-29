@@ -5,7 +5,7 @@ import Link from "next/link";
 import {
   ShieldCheck, Users, BarChart3, Wallet, Lock, ChevronRight, Printer, Loader2,
   UserCheck, Crown, Pause, Play, Gift, CalendarPlus, TrendingUp, Megaphone, ClipboardCheck, Activity,
-  Building2, Check, X, SlidersHorizontal,
+  Building2, Check, X, SlidersHorizontal, MessageSquare,
 } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import { getSupabase } from "@/lib/supabase";
@@ -47,6 +47,7 @@ const TABS = [
   { id: "members", label: "전체 회원", icon: Users },
   { id: "stats", label: "통계", icon: Activity },
   { id: "approval", label: "승인 대기", icon: ClipboardCheck },
+  { id: "tickets", label: "문의", icon: MessageSquare },
   { id: "notice", label: "공지·배너", icon: Megaphone },
   { id: "baseline", label: "기준값", icon: SlidersHorizontal },
 ] as const;
@@ -89,8 +90,84 @@ function OperatorConsole() {
       {tab === "members" && <MembersTab members={members} reload={load} setErr={setErr} />}
       {tab === "stats" && <StatsTab />}
       {tab === "approval" && <ApprovalTab />}
+      {tab === "tickets" && <TicketsTab />}
       {tab === "notice" && <NoticeTab />}
       {tab === "baseline" && <BaselineTab />}
+    </div>
+  );
+}
+
+/* ───────── 1:1 문의 탭 ───────── */
+
+interface AdminTicket {
+  id: number; firm_id: string; firm_name: string | null; member_email: string | null;
+  subject: string | null; body: string; status: string; reply: string | null; created_at: string; replied_at: string | null;
+}
+function TicketsTab() {
+  const [rows, setRows] = useState<AdminTicket[] | null>(null);
+  const [err, setErr] = useState<string | null>(null);
+  const [replyMap, setReplyMap] = useState<Record<number, string>>({});
+  const [busy, setBusy] = useState<number | null>(null);
+  const load = useCallback(async () => {
+    const sb = getSupabase();
+    if (!sb) { setErr("로그인이 필요합니다."); return; }
+    const { data, error } = await sb.rpc("admin_list_tickets");
+    if (error) setErr(error.message); else setRows((data ?? []) as AdminTicket[]);
+  }, []);
+  useEffect(() => { load(); }, [load]);
+
+  const sendReply = async (t: AdminTicket) => {
+    const reply = (replyMap[t.id] ?? t.reply ?? "").trim();
+    if (!reply) return;
+    setBusy(t.id); setErr(null);
+    const { error } = await getSupabase()!.from("support_tickets").update({ reply, status: "answered", replied_at: new Date().toISOString() }).eq("id", t.id);
+    if (error) setErr(error.message); else await load();
+    setBusy(null);
+  };
+  const close = async (t: AdminTicket) => {
+    setBusy(t.id); setErr(null);
+    const { error } = await getSupabase()!.from("support_tickets").update({ status: "closed" }).eq("id", t.id);
+    if (error) setErr(error.message); else await load();
+    setBusy(null);
+  };
+
+  if (!rows) return <Loading />;
+  if (rows.length === 0) return <Placeholder icon={<MessageSquare size={28} />} title="문의 없음" desc="접수된 1:1 문의가 없습니다." />;
+  return (
+    <div className="space-y-3">
+      {err && <div className="rounded-lg bg-danger-bg px-3 py-2 text-[13px] text-danger">{err}</div>}
+      {rows.map((t) => (
+        <Card key={t.id}>
+          <div className="space-y-2 p-5">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div className="flex items-center gap-1.5">
+                <span className="text-[14px] font-semibold text-ink">{t.subject || "문의"}</span>
+                <Badge tone={t.status === "answered" ? "success" : t.status === "closed" ? "muted" : "warning"}>
+                  {t.status === "answered" ? "답변완료" : t.status === "closed" ? "종료" : "대기중"}
+                </Badge>
+              </div>
+              <span className="text-[11px] text-faint">{t.created_at.slice(0, 16).replace("T", " ")}</span>
+            </div>
+            <div className="text-[11.5px] text-faint">{t.firm_name} · {t.member_email}</div>
+            <p className="whitespace-pre-wrap rounded-lg bg-surface-2 p-3 text-[13px] text-ink-soft">{t.body}</p>
+            <textarea
+              value={replyMap[t.id] ?? t.reply ?? ""}
+              onChange={(e) => setReplyMap((m) => ({ ...m, [t.id]: e.target.value }))}
+              rows={2}
+              placeholder="답변을 입력하세요"
+              className="w-full rounded-lg border border-line bg-surface px-3 py-2 text-[13px] outline-none focus:border-brand-300 focus:ring-2 focus:ring-brand-100"
+            />
+            <div className="flex gap-2">
+              <Button size="sm" onClick={() => sendReply(t)} disabled={busy === t.id}>
+                {busy === t.id ? <Loader2 size={13} className="animate-spin" /> : <Check size={13} />} 답변 전송
+              </Button>
+              {t.status !== "closed" && (
+                <button onClick={() => close(t)} disabled={busy === t.id} className="rounded-lg border border-line px-3 text-[12.5px] font-medium text-muted hover:bg-surface-2">종료</button>
+              )}
+            </div>
+          </div>
+        </Card>
+      ))}
     </div>
   );
 }

@@ -15,6 +15,8 @@ import {
   CheckCircle2,
   Plus,
   Trash2,
+  Landmark,
+  Loader2,
 } from "lucide-react";
 import { useStore } from "@/lib/store";
 import { Card, CardHeader, Badge, Button, EmptyState, Stat, Field, Input } from "@/components/ui";
@@ -217,6 +219,7 @@ function Overview({ caseId }: { caseId: string }) {
   return (
     <div className="space-y-4">
       <IncomeEditor caseId={caseId} />
+      <CourtLookup caseId={caseId} />
       <div className="grid gap-4 lg:grid-cols-3">
       <div className="space-y-4 lg:col-span-2">
         <Card>
@@ -449,6 +452,73 @@ function IncomeEditor({ caseId }: { caseId: string }) {
             <Input value={c.assignee ?? ""} placeholder="담당 직원 이름" onChange={(e) => store.updateCase(caseId, { assignee: e.target.value })} />
           )}
         </Field>
+      </div>
+    </Card>
+  );
+}
+
+interface CourtResult {
+  ok: boolean; mock: boolean; caseNo: string; court: string; status: string;
+  progress: { date: string; label: string }[];
+  upcoming: { date: string; type: string; label: string }[];
+  message: string;
+}
+function CourtLookup({ caseId }: { caseId: string }) {
+  const store = useStore();
+  const c = store.caseById(caseId)!;
+  const [res, setRes] = useState<CourtResult | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+  const [added, setAdded] = useState<Record<string, boolean>>({});
+  const lookup = async () => {
+    if (!c.caseNo) { setErr("사건번호를 먼저 입력하세요."); return; }
+    setLoading(true); setErr(null);
+    try {
+      const r = await fetch("/api/court/lookup", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ caseNo: c.caseNo, court: c.court }) });
+      const j = await r.json();
+      if (!j.ok) setErr(j.message ?? "조회 실패"); else setRes(j as CourtResult);
+    } catch { setErr("조회 중 오류가 발생했습니다."); } finally { setLoading(false); }
+  };
+  const addEvent = (u: CourtResult["upcoming"][number]) => {
+    store.addEvent({ id: uid("ev"), caseId, type: u.type as never, title: u.label, date: u.date, notifyKakao: true, notifyEmail: false });
+    setAdded((m) => ({ ...m, [u.date + u.label]: true }));
+  };
+  return (
+    <Card>
+      <CardHeader title="법원 사건 조회" desc="대법원 나의사건검색 연동 — 진행상태·기일 자동 확인" action={<Button size="sm" variant="secondary" onClick={lookup} disabled={loading}>{loading ? <Loader2 size={14} className="animate-spin" /> : <Landmark size={14} />} 조회</Button>} />
+      <div className="p-5">
+        {err && <div className="mb-2 rounded-lg bg-danger-bg px-3 py-2 text-[13px] text-danger">{err}</div>}
+        {!res ? (
+          <p className="text-[13px] text-muted">사건번호({c.caseNo || "미입력"})로 진행상태와 다가오는 기일을 조회합니다.</p>
+        ) : (
+          <div className="space-y-3">
+            <div className="flex flex-wrap items-center gap-2">
+              <Badge tone="brand">{res.court}</Badge>
+              <span className="text-[13px] font-semibold text-ink">{res.status}</span>
+              {res.mock && <Badge tone="warning">목업</Badge>}
+            </div>
+            <div>
+              <div className="mb-1 text-[12px] font-semibold text-faint">진행 내역</div>
+              <ul className="space-y-1">
+                {res.progress.map((p, i) => (<li key={i} className="flex items-center gap-2 text-[13px] text-ink-soft"><span className="tabular-nums text-faint">{p.date}</span> {p.label}</li>))}
+              </ul>
+            </div>
+            <div>
+              <div className="mb-1 text-[12px] font-semibold text-faint">다가오는 기일</div>
+              <ul className="space-y-1.5">
+                {res.upcoming.map((u, i) => (
+                  <li key={i} className="flex items-center justify-between gap-2 rounded-lg bg-surface-2 px-3 py-2">
+                    <div className="text-[13px]"><span className="font-semibold tabular-nums text-ink">{u.date}</span> <span className="text-ink-soft">{u.label}</span></div>
+                    <button onClick={() => addEvent(u)} disabled={!!added[u.date + u.label]} className="inline-flex items-center gap-1 rounded-md border border-line px-2 py-1 text-[11.5px] font-semibold text-brand-700 hover:bg-brand-50 disabled:opacity-50">
+                      {added[u.date + u.label] ? <><CheckCircle2 size={11} /> 추가됨</> : <><Plus size={11} /> 일정 추가</>}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </div>
+            <p className="text-[11px] text-faint">{res.message}</p>
+          </div>
+        )}
       </div>
     </Card>
   );

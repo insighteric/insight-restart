@@ -8,6 +8,7 @@ import { Card, Button, Badge } from "@/components/ui";
 import { HelpBlocks } from "@/components/HelpBlocks";
 import { HELP, HELP_FLAT } from "@/lib/help";
 import { useAuth } from "@/lib/auth";
+import { SupportInbox } from "@/components/SupportInbox";
 
 export default function HelpPage() {
   const { can } = useAuth();
@@ -91,6 +92,10 @@ export default function HelpPage() {
           </Card>
         </div>
       )}
+
+      <div className="mt-4">
+        <SupportInbox />
+      </div>
 
       <div className="mt-4 flex items-center gap-2 rounded-xl border border-line bg-surface-2 p-4 text-[12.5px] text-muted">
         <Rocket size={15} className="shrink-0 text-brand" />
