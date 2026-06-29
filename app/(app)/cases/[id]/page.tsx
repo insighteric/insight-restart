@@ -24,6 +24,11 @@ import {
   FileText,
   FileSignature,
   Printer,
+  LayoutDashboard,
+  Home,
+  Coins,
+  Paperclip,
+  ChevronRight,
 } from "lucide-react";
 import { useStore } from "@/lib/store";
 import { Card, CardHeader, Badge, Button, EmptyState, Stat, Field, Input } from "@/components/ui";
@@ -60,6 +65,13 @@ import type { Stage, CaseType } from "@/lib/types";
 
 const TABS = ["개요", "채권자", "재산", "변제계획", "일정·서류"] as const;
 type Tab = (typeof TABS)[number];
+const TAB_ICON: Record<Tab, React.ElementType> = {
+  "개요": LayoutDashboard,
+  "채권자": Landmark,
+  "재산": Home,
+  "변제계획": Coins,
+  "일정·서류": Paperclip,
+};
 
 export default function CaseDetailPage() {
   const params = useParams<{ id: string }>();
@@ -82,9 +94,13 @@ export default function CaseDetailPage() {
 
   return (
     <div>
-      <Link href="/cases" className="mb-3 inline-flex items-center gap-1 text-[13px] font-medium text-muted hover:text-ink">
-        <ArrowLeft size={15} /> 사건 목록
-      </Link>
+      <nav className="mb-3 flex items-center gap-1.5 text-[12.5px]">
+        <Link href="/cases" className="inline-flex items-center gap-1 font-medium text-muted hover:text-brand-700"><ArrowLeft size={14} /> 사건 관리</Link>
+        <ChevronRight size={13} className="text-faint" />
+        <span className="font-semibold text-ink-soft">{cl?.name ?? "사건"}</span>
+        <ChevronRight size={13} className="text-faint" />
+        <span className="text-muted">{tab}</span>
+      </nav>
 
       {/* Header */}
       <Card className="mb-4">
@@ -122,18 +138,21 @@ export default function CaseDetailPage() {
 
       {/* Tabs */}
       <div className="mb-4 flex gap-1 overflow-x-auto border-b border-line">
-        {TABS.map((t) => (
-          <button
-            key={t}
-            onClick={() => setTab(t)}
-            className={`relative shrink-0 px-4 py-2.5 text-sm font-medium transition-colors ${
-              tab === t ? "text-brand-700" : "text-muted hover:text-ink"
-            }`}
-          >
-            {t}
-            {tab === t && <span className="absolute inset-x-3 -bottom-px h-0.5 rounded-full bg-brand" />}
-          </button>
-        ))}
+        {TABS.map((t) => {
+          const Icon = TAB_ICON[t];
+          return (
+            <button
+              key={t}
+              onClick={() => setTab(t)}
+              className={`relative flex shrink-0 items-center gap-1.5 px-4 py-2.5 text-sm font-medium transition-colors ${
+                tab === t ? "text-brand-700" : "text-muted hover:text-ink"
+              }`}
+            >
+              <Icon size={15} className={tab === t ? "text-brand" : "text-faint"} /> {t}
+              {tab === t && <span className="absolute inset-x-3 -bottom-px h-0.5 rounded-full bg-brand" />}
+            </button>
+          );
+        })}
       </div>
 
       {tab === "개요" && <Overview caseId={c.id} />}

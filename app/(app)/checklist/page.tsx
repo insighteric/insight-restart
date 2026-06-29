@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import { ListChecks, ExternalLink, Copy, Check, FileText, Zap, Loader2, Paperclip } from "lucide-react";
 import { useStore } from "@/lib/store";
 import { PageHeader } from "@/components/AppShell";
-import { Card, CardHeader, Button, Badge, Input, EmptyState } from "@/components/ui";
+import { Card, CardHeader, Button, Badge, Input, EmptyState, Donut } from "@/components/ui";
 import { CaseUploads } from "@/components/CaseUploads";
 import { caseTypeLabel, formatDate } from "@/lib/format";
 import { DOC_MASTER, DOC_CATEGORY_LABEL, docsForType, type DocCategory, type DocSpec } from "@/lib/docChecklist";
@@ -21,6 +21,16 @@ const STATUS: { key: DocCheckStatus; label: string; tone: string }[] = [
   { key: "na", label: "해당없음", tone: "border-line text-faint" },
 ];
 const todayISO = () => new Date().toISOString().slice(0, 10);
+
+function ProgChip({ label, n, tone }: { label: string; n: number; tone: "success" | "warning" | "brand" | "muted" }) {
+  const c = tone === "success" ? "text-success" : tone === "warning" ? "text-warning" : tone === "brand" ? "text-brand-700" : "text-muted";
+  return (
+    <div className="rounded-lg border border-line-soft bg-surface-2 px-3 py-2 text-center">
+      <div className={`text-[18px] font-bold tabular-nums ${c}`}>{n}</div>
+      <div className="text-[11px] text-muted">{label}</div>
+    </div>
+  );
+}
 
 export default function ChecklistPage() {
   const store = useStore();
@@ -156,19 +166,17 @@ export default function ChecklistPage() {
 
       {/* 진행률 */}
       <Card className="mb-4">
-        <div className="flex flex-wrap items-center gap-4 p-5">
-          <div className="flex items-baseline gap-2">
-            <span className="text-3xl font-extrabold text-ink tnum">{summary.pct}%</span>
-            <span className="text-[13px] text-muted">준비 완료</span>
-          </div>
-          <div className="h-2 min-w-[140px] flex-1 overflow-hidden rounded-full bg-line">
-            <div className="h-full rounded-full bg-success" style={{ width: `${summary.pct}%` }} />
-          </div>
-          <div className="flex gap-2 text-[12px]">
-            <Badge tone="success">완료 {summary.done}</Badge>
-            <Badge tone="warning">요청 {summary.requested}</Badge>
-            <Badge tone="muted">미비 {summary.todo}</Badge>
-            <Badge tone="muted">해당없음 {summary.na}</Badge>
+        <div className="flex flex-wrap items-center gap-5 p-5">
+          <Donut
+            value={summary.pct}
+            tone={summary.pct >= 100 ? "success" : "brand"}
+            center={<><span className="text-[19px] font-extrabold tabular-nums text-ink">{summary.pct}%</span><span className="text-[10px] text-muted">완료</span></>}
+          />
+          <div className="grid flex-1 grid-cols-2 gap-2 sm:grid-cols-4">
+            <ProgChip label="완료" n={summary.done} tone="success" />
+            <ProgChip label="요청" n={summary.requested} tone="warning" />
+            <ProgChip label="미비" n={summary.todo} tone="brand" />
+            <ProgChip label="해당없음" n={summary.na} tone="muted" />
           </div>
         </div>
       </Card>

@@ -5,7 +5,7 @@ import { Wallet, Plus, Check, AlertTriangle, Lock, Trash2, ChevronDown, Calendar
 import { useStore } from "@/lib/store";
 import { useAuth } from "@/lib/auth";
 import { PageHeader } from "@/components/AppShell";
-import { Card, CardHeader, Button, Badge, Stat, Field, Input, EmptyState } from "@/components/ui";
+import { Card, CardHeader, Button, Badge, Stat, Field, Input, EmptyState, Donut } from "@/components/ui";
 import { won, formatDate } from "@/lib/format";
 import { feeStatus } from "@/lib/fees";
 import type { FeePlan, FeeInstallment } from "@/lib/types";
@@ -69,6 +69,24 @@ export default function PaymentsPage() {
           <Badge tone="muted"><Lock size={11} /> 관리자만 열람</Badge>
         }
       />
+
+      {(() => {
+        const billed = totals.paid + totals.unpaid;
+        const rate = billed > 0 ? Math.round((totals.paid / billed) * 100) : 0;
+        return (
+          <Card className="mb-4">
+            <div className="flex flex-wrap items-center gap-5 p-5">
+              <Donut value={rate} tone={rate >= 100 ? "success" : totals.overdue ? "danger" : "brand"}
+                center={<><span className="text-[18px] font-extrabold tabular-nums text-ink">{rate}%</span><span className="text-[10px] text-muted">납입률</span></>} />
+              <div>
+                <div className="text-[14px] font-semibold text-ink">수임료 납입 현황</div>
+                <div className="mt-1 text-[13px] text-muted">납입 <b className="tabular-nums text-success">{won(totals.paid)}</b> · 미납 <b className={`tabular-nums ${totals.unpaid ? "text-danger" : "text-ink"}`}>{won(totals.unpaid)}</b></div>
+                <div className="text-[12px] text-faint">총 청구 {won(billed)} · 연체 {won(totals.overdue)} ({totals.overdueCases}건)</div>
+              </div>
+            </div>
+          </Card>
+        );
+      })()}
 
       <Card className="mb-4">
         <div className="grid grid-cols-2 divide-x divide-y divide-line-soft sm:grid-cols-4 sm:divide-y-0">

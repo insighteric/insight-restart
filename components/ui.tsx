@@ -196,6 +196,42 @@ export function Divider() {
   return <div className="h-px w-full bg-line-soft" />;
 }
 
+// 진행률 도넛 링 (리걸프렌즈 벤치마킹)
+export function Donut({
+  value,
+  size = 88,
+  stroke = 9,
+  tone = "brand",
+  center,
+}: {
+  value: number;
+  size?: number;
+  stroke?: number;
+  tone?: "brand" | "success" | "danger" | "info";
+  center?: React.ReactNode;
+}) {
+  const v = Math.max(0, Math.min(100, value || 0));
+  const r = (size - stroke) / 2;
+  const c = 2 * Math.PI * r;
+  const off = c * (1 - v / 100);
+  const color =
+    tone === "success" ? "var(--color-success)" : tone === "danger" ? "var(--color-danger)" : tone === "info" ? "var(--color-info)" : "var(--color-brand)";
+  return (
+    <div className="relative inline-flex shrink-0 items-center justify-center" style={{ width: size, height: size }}>
+      <svg width={size} height={size} className="-rotate-90">
+        <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="var(--color-line)" strokeWidth={stroke} />
+        <circle
+          cx={size / 2} cy={size / 2} r={r} fill="none" stroke={color} strokeWidth={stroke} strokeLinecap="round"
+          strokeDasharray={c} strokeDashoffset={off} style={{ transition: "stroke-dashoffset .6s ease" }}
+        />
+      </svg>
+      <div className="absolute inset-0 flex flex-col items-center justify-center leading-none">
+        {center ?? <span className="text-[18px] font-extrabold tabular-nums text-ink">{Math.round(v)}%</span>}
+      </div>
+    </div>
+  );
+}
+
 export function Spinner({ className = "" }: { className?: string }) {
   return (
     <svg
