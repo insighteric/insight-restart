@@ -61,6 +61,14 @@ const initial: DB = {
   settings: DEFAULT_SETTINGS,
 };
 
+// 실제 로그인 사무소는 빈 상태로 시작(샘플 없이). 데모(localStorage)만 seed 사용.
+const EMPTY: DB = {
+  clients: [], cases: [], corrections: [], documents: [], events: [],
+  feePlans: [], caseLogs: [], docChecks: [], referrals: [], uploads: [],
+  subscription: seedSubscription,
+  settings: DEFAULT_SETTINGS,
+};
+
 interface StoreApi extends DB {
   ready: boolean;
   clientById: (id: string) => Client | undefined;
@@ -97,6 +105,7 @@ interface StoreApi extends DB {
   addClient: (c: Client) => void;
   updateSettings: (patch: Partial<Settings>) => void;
   reset: () => void;
+  clearData: () => void; // 모든 사건·의뢰인 비우기(빈 사무소)
 }
 
 const Ctx = createContext<StoreApi | null>(null);
@@ -122,11 +131,11 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
           if (cancelled) return;
           const cloud = data?.data as Partial<DB> | undefined;
           if (cloud && Object.keys(cloud).length > 0) {
-            setDb({ ...initial, ...cloud });
+            setDb({ ...EMPTY, ...cloud });
           } else {
-            // 최초 로그인: 데모 시드를 사무소 데이터로 저장
-            setDb(initial);
-            await sb!.from("app_state").upsert({ firm_id: auth.firmId, data: initial, updated_at: new Date().toISOString() });
+            // 최초 로그인: 빈 사무소로 시작(샘플 없음)
+            setDb(EMPTY);
+            await sb!.from("app_state").upsert({ firm_id: auth.firmId, data: EMPTY, updated_at: new Date().toISOString() });
           }
         } else if (!auth.configured) {
           const raw = localStorage.getItem(KEY);
@@ -238,6 +247,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     addClient: (c) => setDb((s) => ({ ...s, clients: [c, ...s.clients] })),
     updateSettings: (patch) => setDb((s) => ({ ...s, settings: { ...s.settings, ...patch } })),
     reset: () => setDb(initial),
+    clearData: () => setDb(EMPTY),
   };
 
   return <Ctx.Provider value={api}>{children}</Ctx.Provider>;

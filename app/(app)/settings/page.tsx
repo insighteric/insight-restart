@@ -236,15 +236,25 @@ export default function SettingsPage() {
                 </div>
               </label>
             )}
-            <div className="flex items-center justify-between">
-              <button
-                onClick={() => {
-                  if (confirm("데모 데이터를 초기화할까요? 추가한 사건이 모두 삭제됩니다.")) store.reset();
-                }}
-                className="inline-flex items-center gap-1.5 text-[13px] font-medium text-danger hover:underline"
-              >
-                <RotateCcw size={14} /> 데이터 초기화
-              </button>
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div className="flex flex-wrap gap-3">
+                <button
+                  onClick={() => {
+                    if (confirm("모든 사건·의뢰인·서류 데이터를 삭제하고 빈 사무소로 만들까요? (실사용 시작용 · 되돌릴 수 없음)")) store.clearData();
+                  }}
+                  className="inline-flex items-center gap-1.5 text-[13px] font-medium text-danger hover:underline"
+                >
+                  <RotateCcw size={14} /> 전체 데이터 비우기(실사용 시작)
+                </button>
+                <button
+                  onClick={() => {
+                    if (confirm("샘플(데모) 데이터를 다시 채울까요? 현재 데이터가 덮어써집니다.")) store.reset();
+                  }}
+                  className="inline-flex items-center gap-1.5 text-[13px] font-medium text-muted hover:underline"
+                >
+                  샘플 데이터 채우기
+                </button>
+              </div>
               <Button onClick={saveSettings}>{savedMsg ? <Check size={15} /> : null} {savedMsg ? "저장됨" : "저장"}</Button>
             </div>
           </div>

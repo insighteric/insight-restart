@@ -61,9 +61,17 @@ function OperatorConsole() {
   const load = useCallback(async () => {
     const sb = getSupabase();
     if (!sb) { setErr("로그인이 필요합니다."); return; }
-    const [o, m] = await Promise.all([sb.rpc("admin_overview"), sb.rpc("admin_list_members")]);
-    if (o.error) setErr(o.error.message); else setOverview(o.data as Overview);
-    if (m.error) setErr(m.error.message); else setMembers((m.data ?? []) as Member[]);
+    try {
+      const [o, m] = await Promise.all([sb.rpc("admin_overview"), sb.rpc("admin_list_members")]);
+      if (o.error) { setErr(o.error.message); setOverview({ members: 0, firms: 0, active_subs: 0, free: 0, new_30d: 0, mrr: 0 }); }
+      else setOverview(o.data as Overview);
+      if (m.error) { setErr(m.error.message); setMembers([]); }
+      else setMembers((m.data ?? []) as Member[]);
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : "불러오기 실패");
+      setMembers([]);
+      setOverview({ members: 0, firms: 0, active_subs: 0, free: 0, new_30d: 0, mrr: 0 });
+    }
   }, []);
   useEffect(() => { load(); }, [load]);
 
