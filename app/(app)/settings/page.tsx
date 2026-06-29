@@ -158,6 +158,32 @@ export default function SettingsPage() {
         {billing && <p className="mt-1 text-[12px] font-medium text-brand">{billing}</p>}
       </div>
 
+      {/* 저장 용량 */}
+      <Card className="mb-4">
+        <CardHeader title="저장 용량" desc="사건 ‘첨부 서류’에 업로드한 파일의 사용량입니다." action={<Database size={16} className="text-faint" />} />
+        <div className="p-5">
+          {(() => {
+            const uploads = store.uploads ?? [];
+            const used = uploads.reduce((s, u) => s + (u.size || 0), 0);
+            const tier = subscription.tier;
+            const quotaGB = tier === "team" ? 50 : tier === "pro" ? 10 : 1;
+            const quota = quotaGB * 1024 * 1024 * 1024;
+            const pct = Math.min(100, (used / quota) * 100);
+            const fmt = (b: number) => (b < 1024 * 1024 ? `${(b / 1024).toFixed(0)} KB` : b < 1024 * 1024 * 1024 ? `${(b / 1024 / 1024).toFixed(1)} MB` : `${(b / 1024 / 1024 / 1024).toFixed(2)} GB`);
+            return (
+              <>
+                <div className="flex items-baseline justify-between text-[13px]">
+                  <span className="font-semibold text-ink">{fmt(used)} <span className="text-faint">/ {quotaGB}GB</span></span>
+                  <span className="text-muted">{uploads.length}개 파일</span>
+                </div>
+                <div className="mt-2 h-2 overflow-hidden rounded-full bg-line"><div className={`h-full rounded-full ${pct > 90 ? "bg-danger" : "bg-brand"}`} style={{ width: `${pct}%` }} /></div>
+                <p className="mt-2 text-[11.5px] text-faint">{tier.toUpperCase()} 플랜 기준 {quotaGB}GB 제공. 용량이 부족하면 플랜을 업그레이드하세요.</p>
+              </>
+            );
+          })()}
+        </div>
+      </Card>
+
       <div className="grid gap-4 lg:grid-cols-2">
         {/* 사무소 + 기준값 */}
         <Card>

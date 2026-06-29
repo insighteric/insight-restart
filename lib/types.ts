@@ -234,6 +234,7 @@ export interface Referral {
 }
 
 // 첨부 서류 파일 — 의뢰인/기관에서 받은 실제 파일(Supabase Storage)
+export type UploadCategory = "client" | "court" | "creditor" | "income" | "asset" | "evidence" | "etc";
 export interface CaseUpload {
   id: string;
   caseId: string;
@@ -242,6 +243,7 @@ export interface CaseUpload {
   size: number; // bytes
   mime: string;
   docKey?: string; // 체크리스트 항목과 연결(선택)
+  category?: UploadCategory; // 서류 분류
   uploadedAt: string; // ISO
 }
 

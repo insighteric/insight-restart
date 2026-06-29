@@ -80,6 +80,7 @@ interface StoreApi extends DB {
   setDocCheck: (caseId: string, docKey: string, patch: Partial<CaseDocCheck>) => void;
   uploadsForCase: (caseId: string) => CaseUpload[];
   addUpload: (u: CaseUpload) => void;
+  updateUpload: (id: string, patch: Partial<CaseUpload>) => void;
   removeUpload: (id: string) => void;
   referralForCase: (caseId: string) => Referral | undefined;
   addReferral: (r: Referral) => void;
@@ -202,6 +203,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     uploadsForCase: (caseId) =>
       db.uploads.filter((u) => u.caseId === caseId).sort((a, b) => b.uploadedAt.localeCompare(a.uploadedAt)),
     addUpload: (u) => setDb((s) => ({ ...s, uploads: [u, ...(s.uploads ?? [])] })),
+    updateUpload: (id, patch) =>
+      setDb((s) => ({ ...s, uploads: (s.uploads ?? []).map((u) => (u.id === id ? { ...u, ...patch } : u)) })),
     removeUpload: (id) => setDb((s) => ({ ...s, uploads: (s.uploads ?? []).filter((u) => u.id !== id) })),
     referralForCase: (caseId) => db.referrals.find((r) => r.caseId === caseId),
     addReferral: (r) => setDb((s) => ({ ...s, referrals: [r, ...s.referrals] })),

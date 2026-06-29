@@ -15,3 +15,12 @@ export type PermKey = (typeof PERMISSIONS)[number]["key"];
 
 export const ALL_PERM_KEYS: PermKey[] = PERMISSIONS.map((p) => p.key);
 export const permLabel = (k: string) => PERMISSIONS.find((p) => p.key === k)?.label ?? k;
+
+// 역할 프리셋 — 직원에게 권한 묶음을 한 번에 부여
+export const PERM_PRESETS: { key: string; label: string; desc: string; perms: PermKey[] }[] = [
+  { key: "all", label: "전체 권한", desc: "관리자에 준하는 모든 권한", perms: ALL_PERM_KEYS },
+  { key: "manager", label: "경영 담당", desc: "대시보드·매출·미수금·계약 통계", perms: ["dashboard", "revenue", "receivables", "contracts"] },
+  { key: "billing", label: "수납 담당", desc: "분납·미수금 관리", perms: ["payments", "receivables"] },
+  { key: "viewer", label: "열람 전용", desc: "경영 대시보드만 열람", perms: ["dashboard"] },
+  { key: "none", label: "권한 없음", desc: "기본 업무만(통계·관리 제외)", perms: [] },
+];

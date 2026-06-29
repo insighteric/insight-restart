@@ -6,7 +6,7 @@ import { useAuth } from "@/lib/auth";
 import { getSupabase } from "@/lib/supabase";
 import { PageHeader } from "@/components/AppShell";
 import { Card, CardHeader, Badge, EmptyState, Button } from "@/components/ui";
-import { PERMISSIONS } from "@/lib/permissions";
+import { PERMISSIONS, PERM_PRESETS } from "@/lib/permissions";
 
 interface Invite { id: number; code: string; role: string; active: boolean; created_at: string }
 
@@ -112,8 +112,22 @@ export default function MembersPage() {
                       {savingId === m.id && <Loader2 size={14} className="animate-spin text-faint" />}
                     </div>
 
+                    {/* 권한 프리셋 (직원만) */}
+                    {!isOwner && (
+                      <div className="mt-3 flex flex-wrap items-center gap-1.5">
+                        <span className="text-[11.5px] font-medium text-faint">빠른 설정:</span>
+                        {PERM_PRESETS.map((preset) => (
+                          <button key={preset.key} onClick={() => patch(m.id, { permissions: preset.perms })} disabled={savingId === m.id}
+                            title={preset.desc}
+                            className="rounded-md border border-line bg-surface-2 px-2 py-0.5 text-[11.5px] font-semibold text-ink-soft hover:border-brand-300 hover:bg-brand-50 hover:text-brand-700">
+                            {preset.label}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+
                     {/* 권한 (직원만 선택, 관리자는 전체) */}
-                    <div className="mt-3 flex flex-wrap gap-1.5">
+                    <div className="mt-2 flex flex-wrap gap-1.5">
                       {PERMISSIONS.map((p) => {
                         const granted = isOwner || m.permissions.includes(p.key);
                         return (
