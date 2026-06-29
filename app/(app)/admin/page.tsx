@@ -799,7 +799,7 @@ function NoticeTab() {
 
 function FirmAdminHub({ can }: { can: (k: string) => boolean }) {
   const tiles = [
-    { href: "/members", icon: <Users size={22} />, title: "회원 관리 · 권한 설정", desc: "직원을 관리자로 지정/해제하고, 항목별 권한을 선별 부여합니다.", perm: "members" },
+    { href: "/members", icon: <Users size={22} />, title: "직원 계정 · 권한 관리", desc: "직원 계정(아이디·비번)을 직접 만들고, 사무소 코드·좌석 설정, 관리자 지정·항목별 권한을 부여합니다.", perm: "members" },
     { href: "/management", icon: <BarChart3 size={22} />, title: "경영 대시보드", desc: "매출·계약·미수금 등 운영·회계 통계를 기간별로 봅니다.", perm: "dashboard" },
     { href: "/payments", icon: <Wallet size={22} />, title: "분납 · 미수금 관리", desc: "수임료 분납계획·완납 처리·연체 현황을 관리합니다.", perm: "payments" },
     { href: "/manual-print", icon: <Printer size={22} />, title: "매뉴얼 인쇄 · PDF", desc: "사용설명서를 인쇄하거나 PDF로 저장합니다.", perm: "print" },
