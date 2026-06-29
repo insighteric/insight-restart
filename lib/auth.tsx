@@ -52,11 +52,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
     try {
       // 1) 멤버 본인 정보(권한·운영자 플래그) — 사무소 조회와 분리해 견고하게
-      const { data } = await sb
-        .from("members")
-        .select("firm_id, role, permissions, super_admin")
-        .eq("id", u.id)
-        .single();
+      const fetchMember = () =>
+        sb.from("members").select("firm_id, role, permissions, super_admin").eq("id", u.id).maybeSingle();
+      let { data, error } = await fetchMember();
+      // 세션 토큰이 만료돼 비인증으로 처리되면(행 없음/JWT 오류) 토큰 갱신 후 1회 재시도
+      if ((!data || error) && u) {
+        try { await sb.auth.refreshSession(); } catch { /* ignore */ }
+        ({ data, error } = await fetchMember());
+      }
       if (data) {
         setTrackContext(data.firm_id as string, u.id);
         setFirmId(data.firm_id as string);
