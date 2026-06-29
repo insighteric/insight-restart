@@ -132,6 +132,10 @@ export default function CaseDetailPage() {
           </div>
         </div>
         <div className="border-t border-line-soft px-5 py-4">
+          <div className="mb-3 flex items-center justify-between">
+            <span className="text-[12px] font-semibold text-ink-soft">진행 단계</span>
+            <span className="text-[12px] text-muted">{stageLabel[c.stage]} · {stagesFor(c.type).indexOf(c.stage) + 1}/{stagesFor(c.type).length}단계</span>
+          </div>
           <StageTimeline c={c} />
         </div>
       </Card>

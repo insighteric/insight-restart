@@ -200,7 +200,8 @@ export default function ChecklistPage() {
                     <div key={d.key} className="px-5 py-3">
                       <div className="flex flex-wrap items-center justify-between gap-2">
                         <div className="min-w-0">
-                          <div className="flex items-center gap-1.5">
+                          <div className="flex items-center gap-2">
+                            <span className={`h-2.5 w-2.5 shrink-0 rounded-full ${cur === "done" ? "bg-success" : cur === "requested" ? "bg-warning" : cur === "na" ? "bg-line" : "border border-line bg-transparent"}`} />
                             <span className="text-[14px] font-medium text-ink">{d.name}</span>
                             {d.note && <span className="text-[11px] text-faint">· {d.note}</span>}
                           </div>

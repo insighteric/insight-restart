@@ -70,7 +70,7 @@ const tierLabel: Record<string, string> = { free: "Free", pro: "Pro", team: "Tea
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const { subscription } = useStore();
-  const { configured, signOut, can, isAdmin, superAdmin, user, firmName } = useAuth();
+  const { configured, signOut, can, isAdmin, superAdmin, user, firmName, memberName, role } = useAuth();
   const nav = NAV.filter((item) => !item.perm || can(item.perm));
   const anyAdmin = superAdmin || isAdmin || can("members") || can("dashboard") || can("payments") || can("print");
   const anns = useAnnouncements();
@@ -94,6 +94,23 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             <span className="ml-auto rounded-md bg-brand px-1.5 py-0.5 text-[10px] font-extrabold tracking-wide text-[#1a1305]">ADMIN</span>
           )}
         </div>
+
+        {configured && user && (
+          <div className="mx-3 mb-1 flex items-center gap-2.5 rounded-xl border border-sidebar-line bg-sidebar-2 px-3 py-2.5">
+            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-brand text-[13px] font-extrabold text-[#1a1305]">
+              {(memberName || user.email || "U").charAt(0).toUpperCase()}
+            </div>
+            <div className="min-w-0 leading-tight">
+              <div className="truncate text-[12.5px] font-semibold text-white">{memberName || user.email}</div>
+              <div className="truncate text-[10.5px] text-[#a7adba]">{firmName || "내 사무소"}</div>
+            </div>
+            {superAdmin ? (
+              <span className="ml-auto shrink-0 rounded bg-brand px-1.5 py-0.5 text-[9px] font-extrabold text-[#1a1305]">운영자</span>
+            ) : role === "owner" ? (
+              <span className="ml-auto shrink-0 rounded bg-white/10 px-1.5 py-0.5 text-[9px] font-bold text-[#a7adba]">관리자</span>
+            ) : null}
+          </div>
+        )}
 
         <nav className="flex-1 space-y-0.5 overflow-y-auto px-3 py-2">
           {nav.map((item) => {
