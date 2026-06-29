@@ -59,18 +59,25 @@ function OperatorConsole() {
   const [err, setErr] = useState<string | null>(null);
 
   const load = useCallback(async () => {
+    setErr(null);
+    const ZERO: Overview = { members: 0, firms: 0, active_subs: 0, free: 0, new_30d: 0, mrr: 0 };
     const sb = getSupabase();
-    if (!sb) { setErr("로그인이 필요합니다."); return; }
+    if (!sb) { setErr("로그인이 필요합니다."); setOverview(ZERO); setMembers([]); return; }
+    const fetchAll = () => Promise.all([sb.rpc("admin_overview"), sb.rpc("admin_list_members")]);
+    const withTimeout = <T,>(p: Promise<T>) =>
+      Promise.race([p, new Promise<T>((_, rej) => setTimeout(() => rej(new Error("응답 시간 초과")), 8000))]);
     try {
-      const [o, m] = await Promise.all([sb.rpc("admin_overview"), sb.rpc("admin_list_members")]);
-      if (o.error) { setErr(o.error.message); setOverview({ members: 0, firms: 0, active_subs: 0, free: 0, new_30d: 0, mrr: 0 }); }
-      else setOverview(o.data as Overview);
-      if (m.error) { setErr(m.error.message); setMembers([]); }
-      else setMembers((m.data ?? []) as Member[]);
+      let [o, m] = await withTimeout(fetchAll());
+      if (o.error || m.error) {
+        // 세션 토큰 만료 가능 → 갱신 후 1회 재시도
+        try { await sb.auth.refreshSession(); } catch { /* ignore */ }
+        [o, m] = await withTimeout(fetchAll());
+      }
+      if (o.error) { setErr(o.error.message); setOverview(ZERO); } else setOverview(o.data as Overview);
+      if (m.error) { setErr(m.error.message); setMembers([]); } else setMembers((m.data ?? []) as Member[]);
     } catch (e) {
-      setErr(e instanceof Error ? e.message : "불러오기 실패");
-      setMembers([]);
-      setOverview({ members: 0, firms: 0, active_subs: 0, free: 0, new_30d: 0, mrr: 0 });
+      setErr((e instanceof Error ? e.message : "불러오기 실패") + " — 새로고침하거나 다시 로그인해 주세요.");
+      setOverview(ZERO); setMembers([]);
     }
   }, []);
   useEffect(() => { load(); }, [load]);
@@ -92,7 +99,13 @@ function OperatorConsole() {
         ))}
       </div>
 
-      {err && <div className="mb-3 rounded-lg bg-danger-bg px-3 py-2 text-[13px] text-danger">{err}</div>}
+      {err && (
+        <div className="mb-3 flex flex-wrap items-center gap-2 rounded-lg bg-danger-bg px-3 py-2 text-[13px] text-danger">
+          <span className="flex-1">{err}</span>
+          <button onClick={load} className="rounded-md border border-danger px-2 py-0.5 text-[12px] font-semibold hover:bg-danger/10">다시 시도</button>
+          <a href="/logout" className="rounded-md border border-danger px-2 py-0.5 text-[12px] font-semibold hover:bg-danger/10">재로그인</a>
+        </div>
+      )}
 
       {tab === "dashboard" && <DashboardTab overview={overview} members={members} />}
       {tab === "members" && <MembersTab members={members} reload={load} setErr={setErr} />}
