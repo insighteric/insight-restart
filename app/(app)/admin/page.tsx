@@ -52,6 +52,16 @@ const TABS = [
   { id: "baseline", label: "기준값", icon: SlidersHorizontal },
 ] as const;
 
+// 탭/창 복귀 시 데이터 자동 재조회(세션 갱신 후 최신값 반영)
+function useVisibilityReload(fn: () => void) {
+  useEffect(() => {
+    const onVis = () => { if (document.visibilityState === "visible") fn(); };
+    document.addEventListener("visibilitychange", onVis);
+    window.addEventListener("focus", fn);
+    return () => { document.removeEventListener("visibilitychange", onVis); window.removeEventListener("focus", fn); };
+  }, [fn]);
+}
+
 function OperatorConsole() {
   const [tab, setTab] = useState<(typeof TABS)[number]["id"]>("dashboard");
   const [overview, setOverview] = useState<Overview | null>(null);
@@ -88,6 +98,7 @@ function OperatorConsole() {
     }
   }, []);
   useEffect(() => { load(); }, [load]);
+  useVisibilityReload(load);
 
   return (
     <div>
@@ -600,19 +611,21 @@ function StatsTab() {
   const [period, setPeriod] = useState("30");
   const [data, setData] = useState<Stats | null>(null);
   const [err, setErr] = useState<string | null>(null);
-  useEffect(() => {
-    let on = true;
-    (async () => {
-      const sb = getSupabase();
-      if (!sb) { setErr("로그인이 필요합니다."); return; }
-      setData(null); setErr(null);
-      const { from, to } = rangeFor(period);
-      const { data: d, error } = await sb.rpc("admin_stats", { p_from: from, p_to: to });
-      if (!on) return;
-      if (error) setErr(error.message); else setData(d as Stats);
-    })();
-    return () => { on = false; };
+  const load = useCallback(async () => {
+    const sb = getSupabase();
+    if (!sb) { setErr("로그인이 필요합니다."); return; }
+    setErr(null);
+    try {
+      const { data: { session } } = await sb.auth.getSession();
+      if (session && (session.expires_at ?? 0) * 1000 - Date.now() < 60000) await sb.auth.refreshSession();
+    } catch { /* ignore */ }
+    const { from, to } = rangeFor(period);
+    let res = await sb.rpc("admin_stats", { p_from: from, p_to: to });
+    if (res.error) { try { await sb.auth.refreshSession(); } catch { /* ignore */ } res = await sb.rpc("admin_stats", { p_from: from, p_to: to }); }
+    if (res.error) setErr(res.error.message); else setData(res.data as Stats);
   }, [period]);
+  useEffect(() => { load(); }, [load]);
+  useVisibilityReload(load);
 
   return (
     <div className="space-y-4">

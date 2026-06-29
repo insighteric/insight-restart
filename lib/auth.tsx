@@ -156,6 +156,34 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
   }, [loadFirm, applyCache]);
 
+  // 세션 keep-alive: 만료(임박) 시 자동 갱신 → 재로그인 없이 데이터 유지
+  useEffect(() => {
+    const sb = getSupabase();
+    if (!sb) return;
+    let running = false;
+    const ensureFresh = async () => {
+      if (running) return;
+      running = true;
+      try {
+        const { data: { session } } = await sb.auth.getSession();
+        if (session) {
+          const expMs = (session.expires_at ?? 0) * 1000;
+          // 만료 5분 전이면 미리 갱신(TOKEN_REFRESHED → loadFirm 자동 호출)
+          if (expMs - Date.now() < 5 * 60 * 1000) await sb.auth.refreshSession();
+        }
+      } catch { /* ignore */ } finally { running = false; }
+    };
+    const onVisible = () => { if (document.visibilityState === "visible") ensureFresh(); };
+    document.addEventListener("visibilitychange", onVisible);
+    window.addEventListener("focus", ensureFresh);
+    const timer = setInterval(ensureFresh, 4 * 60 * 1000); // 4분마다 점검
+    return () => {
+      document.removeEventListener("visibilitychange", onVisible);
+      window.removeEventListener("focus", ensureFresh);
+      clearInterval(timer);
+    };
+  }, []);
+
   const signIn: AuthApi["signIn"] = async (email, password) => {
     const sb = getSupabase();
     if (!sb) return { error: "Supabase 미설정" };
