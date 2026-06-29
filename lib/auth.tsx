@@ -28,6 +28,16 @@ interface AuthApi {
 
 const Ctx = createContext<AuthApi | null>(null);
 
+// 마지막 성공 권한을 로컬에 캐시 → 재접속 시 깜빡임 없이 즉시 표시(서버 조회로 갱신)
+const AUTH_CACHE = "ir_auth_v1";
+interface AuthCache { uid: string; firmId: string | null; role: string | null; permissions: string[]; superAdmin: boolean; name: string | null; firmName: string | null; firmStatus: string }
+function loadCache(): AuthCache | null {
+  if (typeof window === "undefined") return null;
+  try { return JSON.parse(localStorage.getItem(AUTH_CACHE) || "null"); } catch { return null; }
+}
+function saveCache(c: AuthCache) { try { localStorage.setItem(AUTH_CACHE, JSON.stringify(c)); } catch { /* ignore */ } }
+function clearCache() { try { localStorage.removeItem(AUTH_CACHE); } catch { /* ignore */ } }
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const configured = supabaseConfigured();
   const [loading, setLoading] = useState(configured);
@@ -51,6 +61,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setFirmStatus(null);
       setMemberName(null);
       setTrackContext(null, null);
+      clearCache();
       return;
     }
     try {
@@ -64,24 +75,47 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         ({ data, error } = await fetchMember());
       }
       if (data) {
+        const role = (data.role as string) ?? "staff";
+        const perms = Array.isArray(data.permissions) ? (data.permissions as string[]) : [];
+        const sAdmin = !!data.super_admin;
+        const mName = (data.name as string) ?? null;
         setTrackContext(data.firm_id as string, u.id);
         setFirmId(data.firm_id as string);
-        setRole((data.role as string) ?? "staff");
-        setPermissions(Array.isArray(data.permissions) ? (data.permissions as string[]) : []);
-        setSuperAdmin(!!data.super_admin);
-        setMemberName((data.name as string) ?? null);
+        setRole(role);
+        setPermissions(perms);
+        setSuperAdmin(sAdmin);
+        setMemberName(mName);
         // 2) 사무소 이름·승인상태(실패해도 권한엔 영향 없음)
+        let fName: string | null = null;
+        let fStatus = "approved";
         try {
           const { data: f } = await sb.from("firms").select("name, status").eq("id", data.firm_id as string).maybeSingle();
-          setFirmName((f?.name as string) ?? null);
-          setFirmStatus((f?.status as string) ?? "approved");
+          fName = (f?.name as string) ?? null;
+          fStatus = (f?.status as string) ?? "approved";
+          setFirmName(fName);
+          setFirmStatus(fStatus);
         } catch {
           setFirmStatus("approved");
         }
+        saveCache({ uid: u.id, firmId: data.firm_id as string, role, permissions: perms, superAdmin: sAdmin, name: mName, firmName: fName, firmStatus: fStatus });
       }
     } catch {
       // 멤버 조회 실패해도 로그인 자체는 유지(로딩이 멈추지 않도록)
     }
+  }, []);
+
+  // 캐시된 권한을 즉시 반영(같은 사용자일 때만) → 깜빡임 방지
+  const applyCache = useCallback((uid: string) => {
+    const c = loadCache();
+    if (!c || c.uid !== uid) return;
+    setFirmId(c.firmId ?? null);
+    setRole(c.role ?? null);
+    setPermissions(c.permissions ?? []);
+    setSuperAdmin(!!c.superAdmin);
+    setFirmName(c.firmName ?? null);
+    setFirmStatus(c.firmStatus ?? "approved");
+    setMemberName(c.name ?? null);
+    setTrackContext(c.firmId ?? null, uid);
   }, []);
 
   useEffect(() => {
@@ -97,6 +131,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       .then(async ({ data }) => {
         const u = data.session?.user ?? null;
         setUser(u);
+        if (u) applyCache(u.id);
         await loadFirm(u);
       })
       .catch(() => {})
@@ -107,6 +142,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const { data: sub } = sb.auth.onAuthStateChange(async (event, session) => {
       const u = session?.user ?? null;
       setUser(u);
+      if (u) applyCache(u.id);
       await loadFirm(u);
       if (u) {
         if (event === "SIGNED_IN") track("login");
@@ -117,7 +153,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       clearTimeout(safety);
       sub.subscription.unsubscribe();
     };
-  }, [loadFirm]);
+  }, [loadFirm, applyCache]);
 
   const signIn: AuthApi["signIn"] = async (email, password) => {
     const sb = getSupabase();
@@ -190,6 +226,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setFirmStatus(null);
     setMemberName(null);
     setTrackContext(null, null);
+    clearCache();
     // 완전 새로고침으로 로그인 화면 이동(잔여 상태 제거)
     if (typeof window !== "undefined") window.location.href = "/login";
   };
