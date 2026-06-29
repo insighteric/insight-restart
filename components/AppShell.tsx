@@ -26,6 +26,7 @@ import {
   Bell,
   ChevronRight,
   LogOut,
+  HelpCircle,
 } from "lucide-react";
 import { useStore } from "@/lib/store";
 import { useAuth } from "@/lib/auth";
@@ -54,6 +55,7 @@ const NAV: {
   { href: "/members", label: "멤버·권한", icon: UserCog, perm: "members" },
   { href: "/tools", label: "PDF 도구", icon: Wrench },
   { href: "/download", label: "다운로드", icon: Download },
+  { href: "/help", label: "도움말", icon: HelpCircle },
   { href: "/settings", label: "설정·구독", icon: Settings },
 ];
 
@@ -150,6 +152,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           </div>
 
           <div className="ml-auto flex items-center gap-2">
+            <Link href="/help" title="도움말" className="flex h-9.5 w-9.5 items-center justify-center rounded-lg border border-line text-muted hover:bg-surface-2 hover:text-brand-700">
+              <HelpCircle size={17} />
+            </Link>
             <button className="relative flex h-9.5 w-9.5 items-center justify-center rounded-lg border border-line text-muted hover:bg-surface-2">
               <Bell size={17} />
               <span className="absolute right-2 top-2 h-1.5 w-1.5 rounded-full bg-danger" />
