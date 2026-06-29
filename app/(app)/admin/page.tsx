@@ -63,9 +63,16 @@ function OperatorConsole() {
     const ZERO: Overview = { members: 0, firms: 0, active_subs: 0, free: 0, new_30d: 0, mrr: 0 };
     const sb = getSupabase();
     if (!sb) { setErr("로그인이 필요합니다."); setOverview(ZERO); setMembers([]); return; }
+    const withTimeout = <T,>(p: Promise<T>, ms = 12000) =>
+      Promise.race([p, new Promise<T>((_, rej) => setTimeout(() => rej(new Error("응답 시간 초과")), ms))]);
+    // 조회 전 세션 확보: 만료(임박) 시 미리 갱신해 stale 토큰 요청 방지
+    try {
+      const { data: { session } } = await withTimeout(sb.auth.getSession(), 4000);
+      if (!session || (session.expires_at && session.expires_at * 1000 < Date.now() + 60000)) {
+        await withTimeout(sb.auth.refreshSession(), 6000);
+      }
+    } catch { /* ignore */ }
     const fetchAll = () => Promise.all([sb.rpc("admin_overview"), sb.rpc("admin_list_members")]);
-    const withTimeout = <T,>(p: Promise<T>) =>
-      Promise.race([p, new Promise<T>((_, rej) => setTimeout(() => rej(new Error("응답 시간 초과")), 8000))]);
     try {
       let [o, m] = await withTimeout(fetchAll());
       if (o.error || m.error) {
