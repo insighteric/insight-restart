@@ -20,6 +20,7 @@ import { ShareDialog } from "@/components/ShareDialog";
 import { Modal } from "@/components/Modal";
 import { correctionCatLabel, ddayLabel, formatDate } from "@/lib/format";
 import { buildClientGuideText, buildEmailSubject } from "@/lib/corrections";
+import { track } from "@/lib/track";
 import type { Correction, CorrectionItem, CorrectionItemCategory } from "@/lib/types";
 
 const SAMPLE = `보정명령
@@ -95,6 +96,7 @@ export default function CorrectionsPage() {
       setItems(its);
       setSource(data.source);
       regenGuide(its);
+      track("correction", { count: its.length });
     } finally {
       setLoading(false);
     }

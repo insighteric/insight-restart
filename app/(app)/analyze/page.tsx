@@ -34,6 +34,7 @@ import {
   type StmtSource,
   type AnalyzeOptions,
 } from "@/lib/txn";
+import { track } from "@/lib/track";
 
 const THRESHOLDS = [0, 300000, 500000, 1000000, 2000000, 3000000];
 const thLabel = (n: number) => (n === 0 ? "전체" : `${n / 10000}만`);
@@ -110,6 +111,7 @@ export default function AnalyzePage() {
     };
     setResult(analyze(txns, opts));
     setResTab("요약");
+    track("analyze", { count: txns.length });
   };
 
   const loadSample = () => {

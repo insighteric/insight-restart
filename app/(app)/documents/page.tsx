@@ -7,6 +7,7 @@ import { PageHeader } from "@/components/AppShell";
 import { Card, CardHeader, Button, Badge, Field, Spinner } from "@/components/ui";
 import { docTypeLabel } from "@/lib/format";
 import { generateDocDraft } from "@/lib/docgen";
+import { track } from "@/lib/track";
 import type { CaseType, DocType } from "@/lib/types";
 
 const DOC_BY_TYPE: Record<CaseType, DocType[]> = {
@@ -55,6 +56,7 @@ export default function DocumentsPage() {
       const data = await res.json();
       setDraft(data.draft);
       setSource(data.source);
+      track("ai_document", { docType });
     } finally {
       setLoading(false);
     }
@@ -77,6 +79,7 @@ export default function DocumentsPage() {
       content: draft,
       updatedAt: new Date().toISOString().slice(0, 10),
     });
+    track("doc_save", { docType });
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
   };

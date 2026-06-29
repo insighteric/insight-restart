@@ -3,6 +3,7 @@
 import React, { createContext, useContext, useEffect, useState, useCallback } from "react";
 import type { User } from "@supabase/supabase-js";
 import { getSupabase, supabaseConfigured } from "./supabase";
+import { setTrackContext, track } from "./track";
 
 interface AuthApi {
   configured: boolean;
@@ -43,6 +44,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setRole(null);
       setPermissions([]);
       setSuperAdmin(false);
+      setTrackContext(null, null);
       return;
     }
     try {
@@ -52,6 +54,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         .eq("id", u.id)
         .single();
       if (data) {
+        setTrackContext(data.firm_id as string, u.id);
         setFirmId(data.firm_id as string);
         setRole((data.role as string) ?? "staff");
         setPermissions(Array.isArray(data.permissions) ? (data.permissions as string[]) : []);
@@ -85,10 +88,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         clearTimeout(safety);
         setLoading(false);
       });
-    const { data: sub } = sb.auth.onAuthStateChange(async (_e, session) => {
+    const { data: sub } = sb.auth.onAuthStateChange(async (event, session) => {
       const u = session?.user ?? null;
       setUser(u);
       await loadFirm(u);
+      if (u) {
+        if (event === "SIGNED_IN") track("login");
+        else if (event === "INITIAL_SESSION") track("visit");
+      }
     });
     return () => {
       clearTimeout(safety);
@@ -146,6 +153,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setRole(null);
     setPermissions([]);
     setSuperAdmin(false);
+    setTrackContext(null, null);
   };
 
   // 데모(Supabase 미설정)에선 관리자 권한 부여, 그 외엔 owner만 관리자

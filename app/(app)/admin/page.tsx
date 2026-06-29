@@ -9,7 +9,7 @@ import {
 import { useAuth } from "@/lib/auth";
 import { getSupabase } from "@/lib/supabase";
 import { PageHeader } from "@/components/AppShell";
-import { Card, Badge, Stat, Button, EmptyState } from "@/components/ui";
+import { Card, CardHeader, Badge, Stat, Button, EmptyState } from "@/components/ui";
 import { won, formatDate } from "@/lib/format";
 
 export default function AdminPage() {
@@ -80,7 +80,7 @@ function OperatorConsole() {
 
       {tab === "dashboard" && <DashboardTab overview={overview} members={members} />}
       {tab === "members" && <MembersTab members={members} reload={load} setErr={setErr} />}
-      {tab === "stats" && <Placeholder icon={<Activity size={28} />} title="접속·사용량 통계" desc="로그인 수·방문자·기능 사용량(AI 호출·문서 생성 등) 통계입니다. 이벤트 추적 기능을 도입하면 자동 집계됩니다. (다음 단계)" />}
+      {tab === "stats" && <StatsTab />}
       {tab === "approval" && <Placeholder icon={<ClipboardCheck size={28} />} title="승인 대기 없음" desc="현재는 가입 즉시 사용 가능합니다. 가입 승인제를 도입하면 여기에서 신규 가입을 승인/거절할 수 있습니다. (다음 단계)" />}
       {tab === "notice" && <Placeholder icon={<Megaphone size={28} />} title="공지사항 · 배너 관리" desc="전체 사용자에게 보일 공지·배너를 등록·관리합니다. (다음 단계)" />}
     </div>
@@ -226,6 +226,123 @@ function Placeholder({ icon, title, desc }: { icon: React.ReactNode; title: stri
 }
 function Loading() {
   return <Card><div className="flex items-center justify-center gap-2 py-12 text-muted"><Loader2 size={18} className="animate-spin" /> 불러오는 중…</div></Card>;
+}
+
+/* ───────── 통계 탭 (접속·사용량) ───────── */
+
+interface Stats {
+  logins: number; visits: number; visitors_per_day: number; feature_total: number;
+  by_type: Record<string, number>; daily: { d: string; logins: number; visitors: number }[];
+}
+const FEATURE_LABEL: Record<string, string> = {
+  ai_document: "AI 서류작성", analyze: "거래내역 분석", correction: "보정 처리",
+  issue: "서류 자동발급", upload: "파일 업로드", doc_save: "서류 저장",
+};
+const pad2 = (n: number) => String(n).padStart(2, "0");
+const fmtD = (d: Date) => `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
+const PERIODS = [
+  { id: "7", label: "최근 7일" }, { id: "30", label: "최근 30일" },
+  { id: "month", label: "이번 달" }, { id: "year", label: "올해" }, { id: "all", label: "전체" },
+];
+function rangeFor(id: string) {
+  const to = new Date();
+  let from = new Date();
+  if (id === "7") from.setDate(to.getDate() - 6);
+  else if (id === "30") from.setDate(to.getDate() - 29);
+  else if (id === "month") from = new Date(to.getFullYear(), to.getMonth(), 1);
+  else if (id === "year") from = new Date(to.getFullYear(), 0, 1);
+  else from = new Date(2024, 0, 1);
+  return { from: fmtD(from), to: fmtD(to) };
+}
+
+function StatsTab() {
+  const [period, setPeriod] = useState("30");
+  const [data, setData] = useState<Stats | null>(null);
+  const [err, setErr] = useState<string | null>(null);
+  useEffect(() => {
+    let on = true;
+    (async () => {
+      const sb = getSupabase();
+      if (!sb) { setErr("로그인이 필요합니다."); return; }
+      setData(null); setErr(null);
+      const { from, to } = rangeFor(period);
+      const { data: d, error } = await sb.rpc("admin_stats", { p_from: from, p_to: to });
+      if (!on) return;
+      if (error) setErr(error.message); else setData(d as Stats);
+    })();
+    return () => { on = false; };
+  }, [period]);
+
+  return (
+    <div className="space-y-4">
+      <div className="flex flex-wrap gap-1.5">
+        {PERIODS.map((p) => (
+          <button key={p.id} onClick={() => setPeriod(p.id)}
+            className={`rounded-lg border px-3 py-1.5 text-[13px] font-medium transition-colors ${period === p.id ? "border-brand bg-brand-50 text-brand-700" : "border-line text-muted hover:bg-surface-2"}`}>
+            {p.label}
+          </button>
+        ))}
+      </div>
+      {err && <div className="rounded-lg bg-danger-bg px-3 py-2 text-[13px] text-danger">{err}</div>}
+      {!data ? <Loading /> : (
+        <>
+          <Card>
+            <div className="grid grid-cols-2 divide-x divide-y divide-line-soft md:grid-cols-4 md:divide-y-0">
+              <Stat label="로그인 수" value={`${data.logins}회`} />
+              <Stat label="일평균 방문자" value={`${data.visitors_per_day}명`} tone="brand" />
+              <Stat label="방문(세션)" value={`${data.visits}회`} />
+              <Stat label="기능 사용" value={`${data.feature_total}회`} tone="success" />
+            </div>
+          </Card>
+
+          <Card>
+            <div className="flex items-center justify-between border-b border-line-soft px-5 py-3">
+              <span className="text-[14px] font-semibold text-ink">날짜별 접속(로그인)</span>
+              <Activity size={15} className="text-brand" />
+            </div>
+            <DailyChart daily={data.daily} />
+          </Card>
+
+          <Card>
+            <CardHeader title="기능별 사용량" desc="기간 내 핵심 기능 호출 횟수" />
+            <div className="space-y-2.5 p-5">
+              {(() => {
+                const rows = Object.keys(FEATURE_LABEL).map((k) => ({ k, label: FEATURE_LABEL[k], n: data.by_type[k] ?? 0 }));
+                const max = Math.max(1, ...rows.map((r) => r.n));
+                if (rows.every((r) => r.n === 0)) return <p className="py-4 text-center text-[13px] text-muted">아직 기록된 사용 내역이 없습니다.</p>;
+                return rows.map((r) => (
+                  <div key={r.k} className="flex items-center gap-3">
+                    <span className="w-24 shrink-0 text-[12.5px] text-ink-soft">{r.label}</span>
+                    <div className="h-2.5 flex-1 overflow-hidden rounded-full bg-line"><div className="h-full rounded-full bg-brand" style={{ width: `${(r.n / max) * 100}%` }} /></div>
+                    <span className="w-10 shrink-0 text-right text-[12.5px] font-semibold tabular-nums text-ink">{r.n}</span>
+                  </div>
+                ));
+              })()}
+            </div>
+          </Card>
+        </>
+      )}
+    </div>
+  );
+}
+
+function DailyChart({ daily }: { daily: Stats["daily"] }) {
+  if (!daily || daily.length === 0) return <div className="py-10 text-center text-[13px] text-muted">기간 내 접속 데이터가 없습니다.</div>;
+  const max = Math.max(1, ...daily.map((x) => x.logins));
+  const show = daily.length > 31 ? daily.slice(-31) : daily;
+  return (
+    <div className="flex h-44 items-end gap-1 overflow-x-auto p-5">
+      {show.map((x) => (
+        <div key={x.d} className="flex min-w-[14px] flex-1 flex-col items-center gap-1" title={`${x.d} · 로그인 ${x.logins} · 방문자 ${x.visitors}`}>
+          <div className="text-[10px] font-semibold text-ink-soft tnum">{x.logins || ""}</div>
+          <div className="flex w-full items-end" style={{ height: "100px" }}>
+            <div className="w-full rounded-t bg-brand" style={{ height: `${(x.logins / max) * 100}%`, minHeight: x.logins ? 3 : 0 }} />
+          </div>
+          <div className="text-[9px] text-faint">{x.d.slice(5)}</div>
+        </div>
+      ))}
+    </div>
+  );
 }
 
 /* ───────── 사무소(firm) 관리자 허브 ───────── */

@@ -5,6 +5,7 @@ import { UploadCloud, File as FileIcon, Download, Trash2, Loader2, Paperclip } f
 import { useStore } from "@/lib/store";
 import { useAuth } from "@/lib/auth";
 import { getSupabase } from "@/lib/supabase";
+import { track } from "@/lib/track";
 import { Card, CardHeader, EmptyState } from "@/components/ui";
 import type { CaseUpload } from "@/lib/types";
 
@@ -42,6 +43,7 @@ export function CaseUploads({ caseId, docKey, compact }: { caseId: string; docKe
         uploadedAt: new Date().toISOString(),
       };
       store.addUpload(meta);
+      track("upload", { caseId });
     }
     setBusy(false);
     if (inputRef.current) inputRef.current.value = "";

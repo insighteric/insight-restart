@@ -9,6 +9,7 @@ import { CaseUploads } from "@/components/CaseUploads";
 import { caseTypeLabel, formatDate } from "@/lib/format";
 import { DOC_MASTER, DOC_CATEGORY_LABEL, docsForType, type DocCategory, type DocSpec } from "@/lib/docChecklist";
 import { isCodefDoc } from "@/lib/codef";
+import { track } from "@/lib/track";
 import type { DocCheckStatus } from "@/lib/types";
 
 const logId = () => `lg_${Date.now().toString(36)}_${Math.floor(Math.random() * 1e4).toString(36)}`;
@@ -77,6 +78,7 @@ export default function ChecklistPage() {
       });
       const j = await res.json();
       if (res.ok && j.ok) {
+        track("issue", { docKey: d.key });
         store.setDocCheck(caseId, d.key, {
           status: "done",
           receivedAt: j.issuedAt ?? todayISO(),
