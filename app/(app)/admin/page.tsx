@@ -10,7 +10,8 @@ import {
 import { useAuth } from "@/lib/auth";
 import { getSupabase } from "@/lib/supabase";
 import { PageHeader } from "@/components/AppShell";
-import { Card, CardHeader, Badge, Stat, Button, EmptyState } from "@/components/ui";
+import { Card, CardHeader, Badge, Stat, Button, EmptyState, Field, Input } from "@/components/ui";
+import { useAdminAnnouncements } from "@/lib/announcements";
 import { won, formatDate } from "@/lib/format";
 
 export default function AdminPage() {
@@ -83,7 +84,7 @@ function OperatorConsole() {
       {tab === "members" && <MembersTab members={members} reload={load} setErr={setErr} />}
       {tab === "stats" && <StatsTab />}
       {tab === "approval" && <ApprovalTab />}
-      {tab === "notice" && <Placeholder icon={<Megaphone size={28} />} title="공지사항 · 배너 관리" desc="전체 사용자에게 보일 공지·배너를 등록·관리합니다. (다음 단계)" />}
+      {tab === "notice" && <NoticeTab />}
     </div>
   );
 }
@@ -399,6 +400,102 @@ function DailyChart({ daily }: { daily: Stats["daily"] }) {
           <div className="text-[9px] text-faint">{x.d.slice(5)}</div>
         </div>
       ))}
+    </div>
+  );
+}
+
+/* ───────── 공지·배너 탭 ───────── */
+
+const selCls2 = "h-9.5 w-full rounded-lg border border-line bg-surface px-2 text-sm text-ink outline-none focus:border-brand-300 focus:ring-2 focus:ring-brand-100";
+
+function NoticeTab() {
+  const { items, err, reload, setErr } = useAdminAnnouncements();
+  const [kind, setKind] = useState<"notice" | "banner">("notice");
+  const [title, setTitle] = useState("");
+  const [body, setBody] = useState("");
+  const [link, setLink] = useState("");
+  const [tone, setTone] = useState("brand");
+  const [busy, setBusy] = useState(false);
+
+  const create = async () => {
+    if (!title.trim() && !body.trim()) { setErr("제목 또는 내용을 입력하세요."); return; }
+    setBusy(true); setErr(null);
+    const sb = getSupabase();
+    const { error } = await sb!.from("announcements").insert({
+      kind, title: title.trim() || null, body: body.trim() || null,
+      link: link.trim() || null, tone: kind === "banner" ? tone : null, active: true,
+    });
+    if (error) setErr(error.message);
+    else { setTitle(""); setBody(""); setLink(""); await reload(); }
+    setBusy(false);
+  };
+  const toggle = async (id: number, active: boolean) => {
+    const sb = getSupabase();
+    const { error } = await sb!.from("announcements").update({ active: !active }).eq("id", id);
+    if (error) setErr(error.message); else await reload();
+  };
+  const remove = async (id: number) => {
+    const sb = getSupabase();
+    const { error } = await sb!.from("announcements").delete().eq("id", id);
+    if (error) setErr(error.message); else await reload();
+  };
+
+  return (
+    <div className="space-y-4">
+      <Card>
+        <CardHeader title="공지·배너 등록" desc="공지는 종 아이콘에, 배너는 상단 바에 전체 사용자에게 표시됩니다." />
+        <div className="space-y-3 p-5">
+          <div className="flex gap-1.5">
+            {([{ v: "notice", l: "공지사항" }, { v: "banner", l: "배너" }] as const).map((o) => (
+              <button key={o.v} onClick={() => setKind(o.v)}
+                className={`rounded-lg border px-3 py-1.5 text-[13px] font-medium ${kind === o.v ? "border-brand bg-brand-50 text-brand-700" : "border-line text-muted hover:bg-surface-2"}`}>{o.l}</button>
+            ))}
+          </div>
+          <Field label="제목"><Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder={kind === "banner" ? "예: 6월 정기점검 안내" : "공지 제목"} /></Field>
+          <Field label="내용">
+            <textarea value={body} onChange={(e) => setBody(e.target.value)} rows={kind === "banner" ? 2 : 4}
+              className="w-full rounded-lg border border-line bg-surface px-3 py-2 text-sm outline-none focus:border-brand-300 focus:ring-2 focus:ring-brand-100"
+              placeholder="내용을 입력하세요" />
+          </Field>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <Field label="링크(선택)"><Input value={link} onChange={(e) => setLink(e.target.value)} placeholder="https://" /></Field>
+            {kind === "banner" && (
+              <Field label="배너 색상">
+                <select className={selCls2} value={tone} onChange={(e) => setTone(e.target.value)}>
+                  <option value="brand">골드(기본)</option><option value="info">블루</option><option value="warning">옐로</option>
+                </select>
+              </Field>
+            )}
+          </div>
+          {err && <div className="rounded-lg bg-danger-bg px-3 py-2 text-[13px] text-danger">{err}</div>}
+          <Button onClick={create} disabled={busy}>{busy ? <Loader2 size={14} className="animate-spin" /> : <Megaphone size={14} />} 등록</Button>
+        </div>
+      </Card>
+
+      <Card>
+        <CardHeader title="등록된 공지·배너" desc={items ? `${items.length}건` : undefined} />
+        {!items ? <Loading /> : items.length === 0 ? (
+          <EmptyState icon={<Megaphone size={26} />} title="등록된 항목이 없습니다" />
+        ) : (
+          <ul className="divide-y divide-line-soft">
+            {items.map((a) => (
+              <li key={a.id} className="flex items-start gap-3 px-5 py-3.5">
+                <Badge tone={a.kind === "banner" ? "brand" : "muted"}>{a.kind === "banner" ? "배너" : "공지"}</Badge>
+                <div className="min-w-0 flex-1">
+                  {a.title && <div className="text-[13.5px] font-semibold text-ink">{a.title}</div>}
+                  {a.body && <div className="truncate text-[12.5px] text-muted">{a.body}</div>}
+                  <div className="text-[11px] text-faint">{a.created_at.slice(0, 10)}{a.active ? "" : " · 비활성"}</div>
+                </div>
+                <button onClick={() => toggle(a.id, a.active)}
+                  className={`inline-flex h-8 items-center gap-1 rounded-lg border px-2.5 text-[12px] font-medium ${a.active ? "border-success text-success bg-success-bg" : "border-line text-muted hover:bg-surface-2"}`}>
+                  {a.active ? <><Play size={12} /> 활성</> : <><Pause size={12} /> 비활성</>}
+                </button>
+                <button onClick={() => remove(a.id)} title="삭제" className="flex h-8 w-8 items-center justify-center rounded-lg text-faint hover:bg-surface-2 hover:text-danger"><X size={15} /></button>
+              </li>
+            ))}
+          </ul>
+        )}
+      </Card>
     </div>
   );
 }

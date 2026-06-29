@@ -25,10 +25,21 @@ import {
   ChevronRight,
   LogOut,
   HelpCircle,
+  Megaphone,
+  X,
+  ExternalLink,
 } from "lucide-react";
+import { useState } from "react";
 import { useStore } from "@/lib/store";
 import { useAuth } from "@/lib/auth";
+import { useAnnouncements } from "@/lib/announcements";
 import { Badge } from "./ui";
+
+const bannerToneClass: Record<string, string> = {
+  brand: "bg-brand text-[#1a1305]",
+  info: "bg-info text-white",
+  warning: "bg-warning text-[#1a1305]",
+};
 
 const NAV: {
   href: string;
@@ -62,6 +73,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const { configured, signOut, can, isAdmin } = useAuth();
   const nav = NAV.filter((item) => !item.perm || can(item.perm));
   const anyAdmin = isAdmin || can("members") || can("dashboard") || can("payments") || can("print");
+  const anns = useAnnouncements();
+  const notices = anns.filter((a) => a.kind === "notice");
+  const banner = anns.find((a) => a.kind === "banner");
+  const [noticeOpen, setNoticeOpen] = useState(false);
+  const [bannerHide, setBannerHide] = useState(false);
 
   return (
     <div className="flex min-h-screen bg-canvas">
@@ -165,10 +181,43 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             <Link href="/help" title="도움말" className="flex h-9.5 w-9.5 items-center justify-center rounded-lg border border-line text-muted hover:bg-surface-2 hover:text-brand-700">
               <HelpCircle size={17} />
             </Link>
-            <button className="relative flex h-9.5 w-9.5 items-center justify-center rounded-lg border border-line text-muted hover:bg-surface-2">
-              <Bell size={17} />
-              <span className="absolute right-2 top-2 h-1.5 w-1.5 rounded-full bg-danger" />
-            </button>
+            <div className="relative">
+              <button
+                onClick={() => setNoticeOpen((o) => !o)}
+                title="공지사항"
+                className="relative flex h-9.5 w-9.5 items-center justify-center rounded-lg border border-line text-muted hover:bg-surface-2"
+              >
+                <Bell size={17} />
+                {notices.length > 0 && <span className="absolute right-2 top-2 h-1.5 w-1.5 rounded-full bg-danger" />}
+              </button>
+              {noticeOpen && (
+                <>
+                  <div className="fixed inset-0 z-30" onClick={() => setNoticeOpen(false)} />
+                  <div className="absolute right-0 top-12 z-40 w-80 overflow-hidden rounded-xl border border-line bg-surface shadow-[var(--shadow-pop)]">
+                    <div className="flex items-center justify-between border-b border-line-soft px-4 py-2.5">
+                      <span className="text-[13px] font-bold text-ink">공지사항</span>
+                      <span className="text-[11px] text-faint">{notices.length}건</span>
+                    </div>
+                    {notices.length === 0 ? (
+                      <div className="px-4 py-8 text-center text-[12.5px] text-muted">새 공지가 없습니다.</div>
+                    ) : (
+                      <ul className="max-h-80 divide-y divide-line-soft overflow-y-auto">
+                        {notices.map((n) => (
+                          <li key={n.id} className="px-4 py-3">
+                            {n.title && <div className="text-[13px] font-semibold text-ink">{n.title}</div>}
+                            {n.body && <div className="mt-0.5 whitespace-pre-wrap text-[12.5px] leading-relaxed text-muted">{n.body}</div>}
+                            <div className="mt-1 flex items-center gap-2 text-[11px] text-faint">
+                              <span>{n.created_at.slice(0, 10)}</span>
+                              {n.link && <a href={n.link} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-0.5 text-brand hover:underline">바로가기 <ExternalLink size={10} /></a>}
+                            </div>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+                </>
+              )}
+            </div>
             <div className="flex items-center gap-2 rounded-lg border border-line py-1 pl-1 pr-2">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src="/logo.png" alt="Insight Restart" className="h-7 w-7 rounded-md" />
@@ -188,6 +237,23 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             </div>
           </div>
         </header>
+
+        {/* 운영자 배너 */}
+        {banner && !bannerHide && (
+          <div className={`flex items-center gap-2 px-5 py-2 text-[13px] font-medium ${bannerToneClass[banner.tone ?? "brand"] ?? bannerToneClass.brand}`}>
+            <Megaphone size={15} className="shrink-0" />
+            <span className="min-w-0 flex-1">
+              {banner.title && <b className="mr-1">{banner.title}</b>}
+              {banner.body}
+              {banner.link && (
+                <a href={banner.link} target="_blank" rel="noopener noreferrer" className="ml-2 inline-flex items-center gap-0.5 underline">
+                  자세히 <ExternalLink size={11} />
+                </a>
+              )}
+            </span>
+            <button onClick={() => setBannerHide(true)} title="닫기" className="shrink-0 rounded p-0.5 hover:bg-black/10"><X size={15} /></button>
+          </div>
+        )}
 
         {/* Mobile nav */}
         <MobileNav
