@@ -51,9 +51,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return;
     }
     try {
+      // 1) 멤버 본인 정보(권한·운영자 플래그) — 사무소 조회와 분리해 견고하게
       const { data } = await sb
         .from("members")
-        .select("firm_id, role, permissions, super_admin, firms(name, status)")
+        .select("firm_id, role, permissions, super_admin")
         .eq("id", u.id)
         .single();
       if (data) {
@@ -62,10 +63,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setRole((data.role as string) ?? "staff");
         setPermissions(Array.isArray(data.permissions) ? (data.permissions as string[]) : []);
         setSuperAdmin(!!data.super_admin);
-        const firms = data.firms as unknown as { name?: string; status?: string } | { name?: string; status?: string }[] | null;
-        const firm = Array.isArray(firms) ? firms[0] : firms;
-        setFirmName(firm?.name ?? null);
-        setFirmStatus(firm?.status ?? "approved");
+        // 2) 사무소 이름·승인상태(실패해도 권한엔 영향 없음)
+        try {
+          const { data: f } = await sb.from("firms").select("name, status").eq("id", data.firm_id as string).maybeSingle();
+          setFirmName((f?.name as string) ?? null);
+          setFirmStatus((f?.status as string) ?? "approved");
+        } catch {
+          setFirmStatus("approved");
+        }
       }
     } catch {
       // 멤버 조회 실패해도 로그인 자체는 유지(로딩이 멈추지 않도록)

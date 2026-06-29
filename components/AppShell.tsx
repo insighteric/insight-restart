@@ -258,7 +258,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         {/* Mobile nav */}
         <MobileNav
           pathname={pathname}
-          items={anyAdmin ? [...nav, { href: "/admin", label: "관리자 모드", icon: ShieldCheck }] : nav}
+          items={anyAdmin ? [{ href: "/admin", label: "관리자 모드", icon: ShieldCheck }, ...nav] : nav}
         />
 
         <main className="min-w-0 flex-1 px-5 py-6 sm:px-7 lg:px-9">
@@ -275,12 +275,17 @@ function MobileNav({ pathname, items }: { pathname: string; items: typeof NAV })
       {items.map((item) => {
         const active = pathname === item.href || pathname.startsWith(item.href + "/");
         const Icon = item.icon;
+        const isAdminItem = item.href === "/admin";
         return (
           <Link
             key={item.href}
             href={item.href}
             className={`flex shrink-0 items-center gap-1.5 rounded-lg px-3 py-1.5 text-[13px] font-medium ${
-              active ? "bg-brand-50 text-brand-700" : "text-muted"
+              isAdminItem
+                ? "bg-brand text-[#1a1305] font-bold"
+                : active
+                ? "bg-brand-50 text-brand-700"
+                : "text-muted"
             }`}
           >
             <Icon size={15} />
