@@ -31,6 +31,25 @@ export default async function Image() {
         }}
       >
         <div style={{ position: "absolute", top: 0, left: 0, width: "100%", height: 8, background: "#c2a45c", display: "flex" }} />
+        {/* 무료 체험 배지 */}
+        <div
+          style={{
+            position: "absolute",
+            top: 44,
+            right: 84,
+            display: "flex",
+            alignItems: "center",
+            background: "#c2a45c",
+            color: "#1a1305",
+            fontFamily: "Pretendard",
+            fontWeight: 700,
+            fontSize: 27,
+            padding: "11px 26px",
+            borderRadius: 999,
+          }}
+        >
+          무료 체험
+        </div>
         {/* 로고 타일 */}
         <div
           style={{
