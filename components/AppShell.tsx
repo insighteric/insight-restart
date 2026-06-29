@@ -70,9 +70,9 @@ const tierLabel: Record<string, string> = { free: "Free", pro: "Pro", team: "Tea
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const { subscription } = useStore();
-  const { configured, signOut, can, isAdmin } = useAuth();
+  const { configured, signOut, can, isAdmin, superAdmin, user, firmName } = useAuth();
   const nav = NAV.filter((item) => !item.perm || can(item.perm));
-  const anyAdmin = isAdmin || can("members") || can("dashboard") || can("payments") || can("print");
+  const anyAdmin = superAdmin || isAdmin || can("members") || can("dashboard") || can("payments") || can("print");
   const anns = useAnnouncements();
   const notices = anns.filter((a) => a.kind === "notice");
   const banner = anns.find((a) => a.kind === "banner");
@@ -222,8 +222,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src="/logo.png" alt="Insight Restart" className="h-7 w-7 rounded-md" />
               <div className="hidden leading-tight sm:block">
-                <div className="text-[12.5px] font-semibold text-ink">고객센터</div>
-                <div className="max-w-[130px] truncate text-[10px] text-faint">Insight Restart</div>
+                <div className="flex items-center gap-1 text-[12.5px] font-semibold text-ink">
+                  {firmName ?? "Insight Restart"}
+                  {superAdmin && <span className="rounded bg-brand px-1 text-[9px] font-extrabold text-[#1a1305]">운영자</span>}
+                </div>
+                <div className="max-w-[150px] truncate text-[10px] text-faint">{configured ? (user?.email ?? "로그인 필요") : "데모 모드"}</div>
               </div>
               {configured && (
                 <button
