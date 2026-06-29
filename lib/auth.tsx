@@ -159,7 +159,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const signIn: AuthApi["signIn"] = async (email, password) => {
     const sb = getSupabase();
     if (!sb) return { error: "Supabase 미설정" };
-    const { error } = await sb.auth.signInWithPassword({ email, password });
+    // 직원 아이디(이메일 형식이 아님)면 합성 이메일로 변환해 로그인
+    const id = email.trim();
+    const loginEmail = id.includes("@")
+      ? id
+      : `${id.toLowerCase().replace(/[^a-z0-9.\-_]/g, "")}@staff.insightrestart.app`;
+    const { error } = await sb.auth.signInWithPassword({ email: loginEmail, password });
     return error ? { error: error.message } : {};
   };
 

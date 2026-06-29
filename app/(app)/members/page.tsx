@@ -1,14 +1,12 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { UserCog, Lock, ShieldCheck, User as UserIcon, Loader2, Info, UserPlus, Copy, Check, Ban, Activity, Mail } from "lucide-react";
+import { UserCog, Lock, ShieldCheck, User as UserIcon, Loader2, Info, UserPlus, Copy, Check, Activity, KeyRound, Trash2, Save } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import { getSupabase } from "@/lib/supabase";
 import { PageHeader } from "@/components/AppShell";
-import { Card, CardHeader, Badge, EmptyState, Button } from "@/components/ui";
+import { Card, CardHeader, Badge, EmptyState, Button, Field, Input } from "@/components/ui";
 import { PERMISSIONS, PERM_PRESETS } from "@/lib/permissions";
-
-interface Invite { id: number; code: string; role: string; active: boolean; created_at: string }
 
 interface Member {
   id: string;
@@ -17,6 +15,7 @@ interface Member {
   role: string;
   phone: string | null;
   permissions: string[];
+  staff_code?: string | null;
 }
 
 export default function MembersPage() {
@@ -25,16 +24,15 @@ export default function MembersPage() {
   const [savingId, setSavingId] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
 
-  useEffect(() => {
+  const loadMembers = useCallback(async () => {
     if (!configured || !firmId) { setMembers([]); return; }
     const sb = getSupabase();
     if (!sb) { setMembers([]); return; }
-    sb.from("members").select("id, name, email, role, phone, permissions").eq("firm_id", firmId)
-      .then(({ data, error }) => {
-        if (error) { setErr(error.message); setMembers([]); return; }
-        setMembers((data ?? []).map((m) => ({ ...m, permissions: Array.isArray(m.permissions) ? m.permissions : [] })) as Member[]);
-      });
+    const { data, error } = await sb.from("members").select("id, name, email, role, phone, permissions, staff_code").eq("firm_id", firmId);
+    if (error) { setErr(error.message); setMembers([]); return; }
+    setMembers((data ?? []).map((m) => ({ ...m, permissions: Array.isArray(m.permissions) ? m.permissions : [] })) as Member[]);
   }, [configured, firmId]);
+  useEffect(() => { loadMembers(); }, [loadMembers]);
 
   const ownerCount = (members ?? []).filter((m) => m.role === "owner").length;
 
@@ -146,7 +144,9 @@ export default function MembersPage() {
             </div>
           </Card>
 
-          {members.some((m) => m.id === user?.id && m.role === "owner") && <InviteSection />}
+          {members.some((m) => m.id === user?.id && m.role === "owner") && firmId && (
+            <StaffAccounts firmId={firmId} members={members} selfId={user?.id} reload={loadMembers} />
+          )}
           <MemberActivity />
         </div>
       )}
@@ -208,82 +208,148 @@ function MemberActivity() {
   );
 }
 
-function InviteSection() {
-  const [invites, setInvites] = useState<Invite[] | null>(null);
+function StaffAccounts({ firmId, members, selfId, reload }: { firmId: string; members: Member[]; selfId?: string; reload: () => Promise<void> }) {
+  const [firm, setFirm] = useState<{ code: string | null; seats: number } | null>(null);
+  const [codeInput, setCodeInput] = useState("");
+  const [seatInput, setSeatInput] = useState("");
+  const [usercode, setUsercode] = useState("");
+  const [name, setName] = useState("");
+  const [pw, setPw] = useState("");
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+  const [msg, setMsg] = useState<string | null>(null);
   const [copied, setCopied] = useState<string | null>(null);
+  const [resetFor, setResetFor] = useState<string | null>(null);
+  const [resetPw, setResetPw] = useState("");
 
-  const load = useCallback(async () => {
-    const sb = getSupabase();
-    if (!sb) return;
-    const { data, error } = await sb.from("invites").select("id, code, role, active, created_at").order("created_at", { ascending: false });
-    if (error) setErr(error.message); else setInvites((data ?? []) as Invite[]);
-  }, []);
-  useEffect(() => { load(); }, [load]);
+  const loadFirm = useCallback(async () => {
+    const sb = getSupabase(); if (!sb) return;
+    const { data } = await sb.from("firms").select("code, seats").eq("id", firmId).maybeSingle();
+    setFirm({ code: (data?.code as string) ?? null, seats: (data?.seats as number) ?? 1 });
+    setCodeInput((data?.code as string) ?? "");
+    setSeatInput(String((data?.seats as number) ?? 1));
+  }, [firmId]);
+  useEffect(() => { loadFirm(); }, [loadFirm]);
 
-  const gen = async () => {
-    setBusy(true); setErr(null);
-    const sb = getSupabase();
-    const { error } = await sb!.rpc("create_invite", { p_role: "staff" });
-    if (error) setErr(error.message); else await load();
+  const authHeader = async (): Promise<Record<string, string>> => {
+    const sb = getSupabase(); if (!sb) return {};
+    const { data } = await sb.auth.getSession();
+    return data.session?.access_token ? { Authorization: `Bearer ${data.session.access_token}` } : {};
+  };
+  const genPw = () => setPw(`ir${Math.floor(1000 + Math.random() * 9000)}!`);
+  const copy = async (t: string) => { await navigator.clipboard.writeText(t); setCopied(t); setTimeout(() => setCopied(null), 1500); };
+
+  const saveCode = async () => {
+    setBusy(true); setErr(null); setMsg(null);
+    const { error } = await getSupabase()!.rpc("set_firm_code", { p_code: codeInput });
+    if (error) setErr(error.message === "code_taken" ? "이미 사용 중인 사무소 코드입니다." : error.message === "bad_code" ? "사무소 코드는 2~12자 영문/숫자입니다." : error.message);
+    else { setMsg("사무소 코드를 저장했습니다."); await loadFirm(); }
     setBusy(false);
   };
-  const revoke = async (id: number) => {
-    const sb = getSupabase();
-    const { error } = await sb!.from("invites").update({ active: false }).eq("id", id);
-    if (error) setErr(error.message); else await load();
+  const saveSeats = async () => {
+    setBusy(true); setErr(null); setMsg(null);
+    const { error } = await getSupabase()!.rpc("set_seats", { p_seats: Number(seatInput) || 1 });
+    if (error) setErr(error.message); else { await loadFirm(); setMsg("좌석 수를 변경했습니다."); }
+    setBusy(false);
   };
-  const copy = async (code: string) => {
-    await navigator.clipboard.writeText(code);
-    setCopied(code); setTimeout(() => setCopied(null), 1500);
+  const createStaff = async () => {
+    if (!usercode.trim() || pw.length < 6) { setErr("직원 코드와 6자 이상 비밀번호를 입력하세요."); return; }
+    setBusy(true); setErr(null); setMsg(null);
+    const res = await fetch("/api/admin/staff", { method: "POST", headers: { "content-type": "application/json", ...(await authHeader()) }, body: JSON.stringify({ usercode, name, password: pw }) });
+    const j = await res.json().catch(() => ({}));
+    if (!j.ok) setErr(j.message ?? "생성에 실패했습니다.");
+    else { setMsg(`계정 생성 완료 — 아이디: ${j.loginId} · 비번: ${pw}`); setUsercode(""); setName(""); setPw(""); await reload(); }
+    setBusy(false);
   };
-  const mailInvite = (code: string) => {
-    const url = typeof window !== "undefined" ? window.location.origin : "https://insight-restart.vercel.app";
-    const subject = encodeURIComponent("[Insight Restart] 직원 초대 — 회생·파산 실무 플랫폼");
-    const body = encodeURIComponent(
-      `안녕하세요,\n\nInsight Restart(개인회생·파산 AI 실무 플랫폼)에 직원으로 초대합니다. 아래 절차로 가입해 주세요.\n\n` +
-      `1) ${url}/login 접속\n2) 회원가입 → '초대코드로 합류' 선택\n3) 초대 코드 입력: ${code}\n4) 이름·전화번호·이메일·비밀번호 입력 후 완료\n\n감사합니다.`,
-    );
-    window.location.href = `mailto:?subject=${subject}&body=${body}`;
+  const resetPassword = async (memberId: string) => {
+    if (resetPw.length < 6) { setErr("새 비밀번호는 6자 이상이어야 합니다."); return; }
+    setBusy(true); setErr(null); setMsg(null);
+    const res = await fetch("/api/admin/staff/password", { method: "POST", headers: { "content-type": "application/json", ...(await authHeader()) }, body: JSON.stringify({ memberId, password: resetPw }) });
+    const j = await res.json().catch(() => ({}));
+    if (!j.ok) setErr(j.message); else { setMsg("비밀번호를 변경했습니다."); setResetFor(null); setResetPw(""); }
+    setBusy(false);
+  };
+  const removeStaff = async (memberId: string, label: string) => {
+    if (!confirm(`${label} 계정을 삭제할까요? 되돌릴 수 없습니다.`)) return;
+    setBusy(true); setErr(null); setMsg(null);
+    const res = await fetch("/api/admin/staff/delete", { method: "POST", headers: { "content-type": "application/json", ...(await authHeader()) }, body: JSON.stringify({ memberId }) });
+    const j = await res.json().catch(() => ({}));
+    if (!j.ok) setErr(j.message); else await reload();
+    setBusy(false);
   };
 
-  const active = (invites ?? []).filter((i) => i.active);
+  const staff = members.filter((m) => m.id !== selfId);
+  const loginId = (m: Member) => (firm?.code && m.staff_code ? `${firm.code}-${m.staff_code}` : (m.email ?? ""));
 
   return (
     <Card>
-      <CardHeader
-        title="직원 초대 (초대 코드)"
-        desc="코드를 발급해 직원에게 전달하세요. 직원은 회원가입 → ‘초대코드로 합류’에서 입력하면 이 사무소에 합류합니다."
-        action={<Button size="sm" onClick={gen} disabled={busy}>{busy ? <Loader2 size={13} className="animate-spin" /> : <UserPlus size={14} />} 코드 발급</Button>}
-      />
-      <div className="p-5">
-        {err && <div className="mb-3 rounded-lg bg-danger-bg px-3 py-2 text-[13px] text-danger">{err}</div>}
-        {invites === null ? (
-          <div className="flex items-center gap-2 py-4 text-muted"><Loader2 size={16} className="animate-spin" /> 불러오는 중…</div>
-        ) : active.length === 0 ? (
-          <p className="py-3 text-center text-[13px] text-muted">활성 초대 코드가 없습니다. ‘코드 발급’으로 새 코드를 만드세요.</p>
-        ) : (
-          <ul className="space-y-2">
-            {active.map((i) => (
-              <li key={i.id} className="flex items-center gap-3 rounded-lg border border-line-soft px-3 py-2.5">
-                <code className="rounded-md bg-surface-2 px-2.5 py-1 text-[15px] font-bold tracking-widest text-ink">{i.code}</code>
-                <Badge tone="muted">{i.role === "owner" ? "관리자" : "직원"}</Badge>
-                <span className="text-[11px] text-faint">{i.created_at.slice(0, 10)}</span>
-                <div className="ml-auto flex items-center gap-1">
-                  <button onClick={() => copy(i.code)} title="복사" className="flex h-8 items-center gap-1 rounded-lg border border-line px-2.5 text-[12px] font-medium text-muted hover:bg-surface-2">
-                    {copied === i.code ? <Check size={13} className="text-success" /> : <Copy size={13} />} {copied === i.code ? "복사됨" : "복사"}
-                  </button>
-                  <button onClick={() => mailInvite(i.code)} title="메일로 초대" className="flex h-8 items-center gap-1 rounded-lg border border-line px-2.5 text-[12px] font-medium text-muted hover:bg-surface-2">
-                    <Mail size={13} /> 메일
-                  </button>
-                  <button onClick={() => revoke(i.id)} title="사용 중지" className="flex h-8 w-8 items-center justify-center rounded-lg text-faint hover:bg-surface-2 hover:text-danger"><Ban size={15} /></button>
+      <CardHeader title="직원 계정 관리" desc="직원의 아이디·비밀번호를 직접 만들어 전달하세요. 직원은 회원가입 없이 바로 로그인합니다." action={<UserPlus size={15} className="text-brand" />} />
+      <div className="space-y-4 p-5">
+        {err && <div className="rounded-lg bg-danger-bg px-3 py-2 text-[13px] text-danger">{err}</div>}
+        {msg && <div className="rounded-lg bg-success-bg px-3 py-2 text-[13px] text-success">{msg}</div>}
+
+        <div className="grid gap-3 sm:grid-cols-2">
+          <Field label="사무소 코드 (아이디 앞 단체 구분)" hint="예: SHINAN → 직원 아이디 SHINAN-B001">
+            <div className="flex gap-1.5">
+              <Input value={codeInput} onChange={(e) => setCodeInput(e.target.value.toUpperCase())} placeholder="영문/숫자 2~12자" />
+              <Button size="sm" variant="secondary" onClick={saveCode} disabled={busy}><Save size={13} /> 저장</Button>
+            </div>
+          </Field>
+          <Field label="좌석 수 (관리자 포함)" hint={`현재 ${members.length}명 / 좌석 ${firm?.seats ?? "-"}`}>
+            <div className="flex gap-1.5">
+              <Input value={seatInput} onChange={(e) => setSeatInput(e.target.value.replace(/[^0-9]/g, ""))} inputMode="numeric" />
+              <Button size="sm" variant="secondary" onClick={saveSeats} disabled={busy}><Save size={13} /> 저장</Button>
+            </div>
+          </Field>
+        </div>
+
+        <div className="rounded-xl border border-line-soft p-3">
+          <div className="mb-2 text-[13px] font-semibold text-ink">직원 계정 만들기</div>
+          {!firm?.code ? (
+            <p className="text-[12.5px] text-muted">먼저 위에서 <b>사무소 코드</b>를 저장해 주세요.</p>
+          ) : (
+            <>
+              <div className="grid gap-2 sm:grid-cols-[1fr_1fr_1.2fr_auto]">
+                <Input value={usercode} onChange={(e) => setUsercode(e.target.value.toUpperCase())} placeholder="직원 코드 (예: B001)" />
+                <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="이름" />
+                <div className="flex gap-1.5">
+                  <Input value={pw} onChange={(e) => setPw(e.target.value)} placeholder="비밀번호(6자+)" />
+                  <button onClick={genPw} title="자동 생성" className="shrink-0 rounded-lg border border-line px-2 text-[12px] text-muted hover:bg-surface-2">자동</button>
                 </div>
-              </li>
-            ))}
-          </ul>
+                <Button size="sm" onClick={createStaff} disabled={busy}>{busy ? <Loader2 size={13} className="animate-spin" /> : <UserPlus size={13} />} 생성</Button>
+              </div>
+              <p className="mt-1.5 text-[11px] text-faint">아이디는 <b>{firm.code}-직원코드</b> 형식입니다. 직원은 로그인 화면에서 이 아이디 + 비밀번호로 접속합니다.</p>
+            </>
+          )}
+        </div>
+
+        {staff.length > 0 && (
+          <div>
+            <div className="mb-1.5 text-[12.5px] font-semibold text-ink-soft">직원 계정 {staff.length}개</div>
+            <ul className="space-y-2">
+              {staff.map((m) => (
+                <li key={m.id} className="rounded-lg border border-line-soft p-3">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <code className="rounded-md bg-surface-2 px-2 py-1 text-[13px] font-bold tracking-wide text-ink">{loginId(m)}</code>
+                    <span className="text-[13px] text-ink-soft">{m.name}</span>
+                    <div className="ml-auto flex items-center gap-1">
+                      <button onClick={() => copy(loginId(m))} className="flex h-8 items-center gap-1 rounded-lg border border-line px-2.5 text-[12px] text-muted hover:bg-surface-2">{copied === loginId(m) ? <Check size={13} className="text-success" /> : <Copy size={13} />} 아이디</button>
+                      <button onClick={() => { setResetFor(resetFor === m.id ? null : m.id); setResetPw(""); }} className="flex h-8 items-center gap-1 rounded-lg border border-line px-2.5 text-[12px] text-muted hover:bg-surface-2"><KeyRound size={13} /> 비번</button>
+                      <button onClick={() => removeStaff(m.id, loginId(m))} title="삭제" className="flex h-8 w-8 items-center justify-center rounded-lg text-faint hover:bg-surface-2 hover:text-danger"><Trash2 size={14} /></button>
+                    </div>
+                  </div>
+                  {resetFor === m.id && (
+                    <div className="mt-2 flex gap-1.5">
+                      <Input value={resetPw} onChange={(e) => setResetPw(e.target.value)} placeholder="새 비밀번호(6자 이상)" />
+                      <Button size="sm" onClick={() => resetPassword(m.id)} disabled={busy}>변경</Button>
+                    </div>
+                  )}
+                </li>
+              ))}
+            </ul>
+          </div>
         )}
-        <p className="mt-3 text-[11.5px] text-faint">※ 합류한 직원은 위 목록에서 관리자 지정·권한 부여가 가능합니다. 코드는 여러 번 사용할 수 있으니, 다 쓰면 ‘사용 중지’ 하세요.</p>
+        <p className="text-[11.5px] text-faint">※ 직원 권한은 위 ‘사무소 멤버’ 목록에서 부여합니다. 좌석 자동 한도·결제는 결제 연동 후 적용됩니다.</p>
       </div>
     </Card>
   );

@@ -247,8 +247,8 @@ export default function LoginPage() {
                   </Field>
                 </>
               )}
-              <Field label="이메일">
-                <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@firm.com" />
+              <Field label={mode === "login" ? "이메일 또는 직원 아이디" : "이메일"}>
+                <Input type={mode === "login" ? "text" : "email"} value={email} onChange={(e) => setEmail(e.target.value)} placeholder={mode === "login" ? "you@firm.com 또는 직원 아이디(예: SHINAN-B001)" : "you@firm.com"} />
               </Field>
               <Field label="비밀번호" hint={mode === "signup" ? "6자 이상" : undefined}>
                 <Input
