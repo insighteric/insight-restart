@@ -36,7 +36,10 @@ interface Member {
   member_id: string; name: string | null; email: string | null; phone: string | null; role: string;
   super_admin: boolean; firm_id: string; firm_name: string | null; plan: string;
   sub_status: string; sub_until: string | null; is_free: boolean; org_type: string; created_at: string;
+  last_active: string | null;
 }
+const PLAN_PRICE: Record<string, number> = { pro: 59000, team: 149000, free: 0 };
+const PLAN_LABEL: Record<string, string> = { free: "Free", pro: "Pro", team: "Team" };
 
 const TABS = [
   { id: "dashboard", label: "대시보드", icon: BarChart3 },
@@ -103,6 +106,25 @@ function DashboardTab({ overview, members }: { overview: Overview | null; member
   }, [members]);
   const max = Math.max(1, ...series.map((s) => s.n));
 
+  const planDist = useMemo(() => {
+    const d: Record<string, number> = { free: 0, pro: 0, team: 0 };
+    (members ?? []).forEach((m) => { d[m.plan] = (d[m.plan] ?? 0) + 1; });
+    return d;
+  }, [members]);
+  const expiring = useMemo(() =>
+    (members ?? [])
+      .filter((m) => !m.is_free && m.sub_status === "active" && m.sub_until)
+      .map((m) => ({ m, d: dday(m.sub_until) }))
+      .filter((x) => x.d !== null && (x.d as number) <= 30)
+      .sort((a, b) => (a.d as number) - (b.d as number)),
+  [members]);
+  const inactive = useMemo(() =>
+    (members ?? [])
+      .map((m) => ({ m, days: m.last_active ? Math.floor((Date.now() - new Date(m.last_active).getTime()) / 86400000) : null }))
+      .filter((x) => x.days === null || x.days >= 14)
+      .sort((a, b) => (b.days ?? 99999) - (a.days ?? 99999)),
+  [members]);
+
   if (!overview) return <Loading />;
   return (
     <div className="space-y-4">
@@ -131,6 +153,71 @@ function DashboardTab({ overview, members }: { overview: Overview | null; member
           ))}
         </div>
       </Card>
+
+      {/* 플랜 분포 + 매출 구성 */}
+      <Card>
+        <CardHeader title="플랜 분포 · 매출 구성" desc="플랜별 사무소 수와 월 구독 매출 기여(추정)" />
+        <div className="space-y-2.5 p-5">
+          {(() => {
+            const totalFirms = Math.max(1, (members ?? []).length);
+            return (["team", "pro", "free"] as const).map((p) => {
+              const n = planDist[p] ?? 0;
+              const rev = n * (PLAN_PRICE[p] ?? 0);
+              return (
+                <div key={p} className="flex items-center gap-3">
+                  <span className="w-12 shrink-0 text-[12.5px] font-semibold text-ink">{PLAN_LABEL[p]}</span>
+                  <div className="h-2.5 flex-1 overflow-hidden rounded-full bg-line"><div className={`h-full rounded-full ${p === "free" ? "bg-faint" : "bg-brand"}`} style={{ width: `${(n / totalFirms) * 100}%` }} /></div>
+                  <span className="w-10 shrink-0 text-right text-[12.5px] font-semibold tabular-nums text-ink">{n}곳</span>
+                  <span className="w-24 shrink-0 text-right text-[12px] tabular-nums text-muted">{rev ? won(rev) : "—"}</span>
+                </div>
+              );
+            });
+          })()}
+          <p className="pt-1 text-[11px] text-faint">※ 월별 매출 추이 그래프는 실결제(토스) 연동 후 실데이터로 제공됩니다. 현재는 활성·유료 구독 기준 추정.</p>
+        </div>
+      </Card>
+
+      <div className="grid gap-4 lg:grid-cols-2">
+        {/* 구독 만료 임박 */}
+        <Card>
+          <CardHeader title="구독 만료 임박 (D-30)" desc={`${expiring.length}곳 — 갱신 유도 대상`} />
+          {expiring.length === 0 ? (
+            <div className="px-5 py-8 text-center text-[13px] text-muted">30일 내 만료 예정인 유료 구독이 없습니다.</div>
+          ) : (
+            <ul className="divide-y divide-line-soft">
+              {expiring.slice(0, 8).map(({ m, d }) => (
+                <li key={m.firm_id} className="flex items-center justify-between px-5 py-2.5">
+                  <div className="min-w-0">
+                    <div className="truncate text-[13px] font-medium text-ink">{m.firm_name}</div>
+                    <div className="text-[11px] text-faint">{m.name} · {m.plan?.toUpperCase()} · {m.sub_until}</div>
+                  </div>
+                  <Badge tone={(d as number) <= 7 ? "danger" : "warning"}>D-{d}</Badge>
+                </li>
+              ))}
+            </ul>
+          )}
+        </Card>
+
+        {/* 이탈 위험(미접속) */}
+        <Card>
+          <CardHeader title="이탈 위험 (14일+ 미접속)" desc={`${inactive.length}곳 — 케어 대상`} />
+          {inactive.length === 0 ? (
+            <div className="px-5 py-8 text-center text-[13px] text-muted">최근 접속이 활발합니다. 이탈 위험 사무소가 없습니다.</div>
+          ) : (
+            <ul className="divide-y divide-line-soft">
+              {inactive.slice(0, 8).map(({ m, days }) => (
+                <li key={m.firm_id} className="flex items-center justify-between px-5 py-2.5">
+                  <div className="min-w-0">
+                    <div className="truncate text-[13px] font-medium text-ink">{m.firm_name}</div>
+                    <div className="text-[11px] text-faint">{m.name} · {m.email}</div>
+                  </div>
+                  <Badge tone="muted">{days === null ? "접속 기록 없음" : `${days}일 전`}</Badge>
+                </li>
+              ))}
+            </ul>
+          )}
+        </Card>
+      </div>
     </div>
   );
 }
