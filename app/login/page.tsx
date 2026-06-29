@@ -351,8 +351,14 @@ export default function LoginPage() {
           {auth.configured ? "Supabase 인증으로 보호됩니다." : "데모 모드(로컬)로 실행 중입니다."}
         </p>
         <Link
+          href="/self-check"
+          className="mt-3 flex items-center justify-center gap-1.5 text-[12.5px] font-semibold text-brand-700 hover:underline"
+        >
+          <Sparkles size={14} /> 개인회생·파산 무료 자가진단 (1분)
+        </Link>
+        <Link
           href="/download"
-          className="mt-3 flex items-center justify-center gap-1.5 text-[12.5px] font-medium text-muted hover:text-ink hover:underline"
+          className="mt-2 flex items-center justify-center gap-1.5 text-[12.5px] font-medium text-muted hover:text-ink hover:underline"
         >
           <Monitor size={14} /> 데스크톱 앱(Windows·Mac) 다운로드
         </Link>
