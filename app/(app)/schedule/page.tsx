@@ -16,6 +16,7 @@ export default function SchedulePage() {
   const store = useStore();
   const { events, cases, clientById } = store;
   const [open, setOpen] = useState(false);
+  const [consultOpen, setConsultOpen] = useState(false);
   const [view, setView] = useState<"list" | "calendar">("list");
 
   const sorted = useMemo(
@@ -40,9 +41,14 @@ export default function SchedulePage() {
         title="일정·기한"
         desc="보정기한·기일·변제 납입 등 모든 기한을 한 곳에서 관리하고 카톡·이메일로 알림을 보냅니다."
         action={
-          <Button onClick={() => setOpen(true)}>
-            <Plus size={16} /> 일정 추가
-          </Button>
+          <div className="flex gap-2">
+            <Button variant="secondary" onClick={() => setConsultOpen(true)}>
+              <CalendarClock size={16} /> 상담 예약
+            </Button>
+            <Button onClick={() => setOpen(true)}>
+              <Plus size={16} /> 일정 추가
+            </Button>
+          </div>
         }
       />
 
@@ -103,6 +109,7 @@ export default function SchedulePage() {
                               {e.notifyKakao && <MessageCircle size={12} className="text-[#9c7a00]" />}
                               {e.notifyEmail && <Mail size={12} className="text-brand-300" />}
                             </div>
+                            {e.memo && <div className="mt-0.5 text-[12px] text-faint">{e.memo}</div>}
                           </div>
                           {!e.done && (
                             <Badge tone={urgent ? "danger" : "warning"}>{ddayLabel(e.date)}</Badge>
@@ -119,7 +126,75 @@ export default function SchedulePage() {
       )}
 
       <AddEventDialog open={open} onClose={() => setOpen(false)} />
+      <ConsultDialog open={consultOpen} onClose={() => setConsultOpen(false)} />
     </div>
+  );
+}
+
+function ConsultDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const store = useStore();
+  const [name, setName] = useState("");
+  const [phone, setPhone] = useState("");
+  const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
+  const [time, setTime] = useState("");
+  const [memo, setMemo] = useState("");
+
+  const submit = () => {
+    if (!name.trim()) return;
+    const parts = [phone.trim() ? `☎ ${phone.trim()}` : "", time ? `${time}` : "", memo.trim()].filter(Boolean);
+    store.addEvent({
+      id: `ev_${Date.now().toString(36)}`,
+      type: "consult",
+      title: `상담예약 · ${name.trim()}`,
+      date,
+      memo: parts.join(" · ") || undefined,
+      notifyKakao: false,
+      notifyEmail: false,
+    });
+    setName(""); setPhone(""); setTime(""); setMemo("");
+    onClose();
+  };
+
+  return (
+    <Modal
+      open={open}
+      onClose={onClose}
+      title="상담 예약"
+      desc="상담 예정 의뢰인을 캘린더에 등록합니다. (수임 전 단계)"
+      size="lg"
+      footer={
+        <>
+          <Button variant="secondary" onClick={onClose}>취소</Button>
+          <Button onClick={submit} disabled={!name.trim()}>예약 등록</Button>
+        </>
+      }
+    >
+      <div className="space-y-3">
+        <Field label="상담자 이름">
+          <input value={name} onChange={(e) => setName(e.target.value)} placeholder="홍길동"
+            className="h-9.5 w-full rounded-lg border border-line bg-surface px-3 text-sm outline-none focus:border-brand-300 focus:ring-2 focus:ring-brand-100" />
+        </Field>
+        <Field label="연락처">
+          <input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="010-1234-5678" type="tel"
+            className="h-9.5 w-full rounded-lg border border-line bg-surface px-3 text-sm outline-none focus:border-brand-300 focus:ring-2 focus:ring-brand-100" />
+        </Field>
+        <div className="grid grid-cols-2 gap-3">
+          <Field label="날짜">
+            <input type="date" value={date} onChange={(e) => setDate(e.target.value)}
+              className="h-9.5 w-full rounded-lg border border-line bg-surface px-3 text-sm outline-none focus:border-brand-300 focus:ring-2 focus:ring-brand-100" />
+          </Field>
+          <Field label="시간 (선택)">
+            <input type="time" value={time} onChange={(e) => setTime(e.target.value)}
+              className="h-9.5 w-full rounded-lg border border-line bg-surface px-3 text-sm outline-none focus:border-brand-300 focus:ring-2 focus:ring-brand-100" />
+          </Field>
+        </div>
+        <Field label="메모 (선택)">
+          <input value={memo} onChange={(e) => setMemo(e.target.value)} placeholder="예: 카드 채무 위주, 방문 상담"
+            className="h-9.5 w-full rounded-lg border border-line bg-surface px-3 text-sm outline-none focus:border-brand-300 focus:ring-2 focus:ring-brand-100" />
+        </Field>
+        <p className="text-[11.5px] text-faint">등록하면 일정·기한과 캘린더에 ‘상담’ 일정으로 표시됩니다.</p>
+      </div>
+    </Modal>
   );
 }
 
