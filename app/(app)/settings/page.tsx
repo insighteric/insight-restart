@@ -7,6 +7,7 @@ import { useAuth } from "@/lib/auth";
 import { PageHeader } from "@/components/AppShell";
 import { Card, CardHeader, Button, Badge, Field, Input } from "@/components/ui";
 import { won } from "@/lib/format";
+import { fetchPlatformBaseline } from "@/lib/platformSettings";
 import type { PlanTier } from "@/lib/types";
 
 interface IntegrationStatus {
@@ -97,6 +98,17 @@ export default function SettingsPage() {
     });
     setSavedMsg(true);
     setTimeout(() => setSavedMsg(false), 2000);
+  };
+
+  const [applyMsg, setApplyMsg] = useState<string | null>(null);
+  const applyBaseline = async () => {
+    const b = await fetchPlatformBaseline();
+    if (!b) { setApplyMsg("운영자 권장값을 불러올 수 없습니다."); return; }
+    setRatio(Math.round((b.livingCostRatio ?? 0.6) * 100));
+    setTable(b.medianIncomeByHousehold ?? table);
+    store.updateSettings({ livingCostRatio: b.livingCostRatio, medianIncomeByHousehold: b.medianIncomeByHousehold, baseYear: b.baseYear });
+    setApplyMsg(`운영자 권장 기준값(${b.baseYear}년)을 적용했습니다.`);
+    setTimeout(() => setApplyMsg(null), 3000);
   };
 
   return (
@@ -210,6 +222,10 @@ export default function SettingsPage() {
                 ))}
               </div>
               <p className="mt-2 text-[11px] text-faint">예: 1인 {won(table[1] ?? 0)} → 생계비 {won(Math.round((table[1] ?? 0) * (ratio / 100)))}</p>
+              <button onClick={applyBaseline} className="mt-2 inline-flex items-center gap-1.5 rounded-lg border border-line px-3 py-1.5 text-[12.5px] font-semibold text-brand-700 hover:bg-brand-50">
+                <RotateCcw size={13} /> 운영자 권장값 적용
+              </button>
+              {applyMsg && <p className="mt-1.5 text-[12px] text-success">{applyMsg}</p>}
             </div>
             <div className="flex items-center justify-between">
               <button

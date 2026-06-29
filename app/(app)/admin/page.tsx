@@ -5,13 +5,14 @@ import Link from "next/link";
 import {
   ShieldCheck, Users, BarChart3, Wallet, Lock, ChevronRight, Printer, Loader2,
   UserCheck, Crown, Pause, Play, Gift, CalendarPlus, TrendingUp, Megaphone, ClipboardCheck, Activity,
-  Building2, Check, X,
+  Building2, Check, X, SlidersHorizontal,
 } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import { getSupabase } from "@/lib/supabase";
 import { PageHeader } from "@/components/AppShell";
 import { Card, CardHeader, Badge, Stat, Button, EmptyState, Field, Input } from "@/components/ui";
 import { useAdminAnnouncements } from "@/lib/announcements";
+import { fetchPlatformBaseline, savePlatformBaseline, type PlatformBaseline } from "@/lib/platformSettings";
 import { won, formatDate } from "@/lib/format";
 
 export default function AdminPage() {
@@ -47,6 +48,7 @@ const TABS = [
   { id: "stats", label: "통계", icon: Activity },
   { id: "approval", label: "승인 대기", icon: ClipboardCheck },
   { id: "notice", label: "공지·배너", icon: Megaphone },
+  { id: "baseline", label: "기준값", icon: SlidersHorizontal },
 ] as const;
 
 function OperatorConsole() {
@@ -88,7 +90,61 @@ function OperatorConsole() {
       {tab === "stats" && <StatsTab />}
       {tab === "approval" && <ApprovalTab />}
       {tab === "notice" && <NoticeTab />}
+      {tab === "baseline" && <BaselineTab />}
     </div>
+  );
+}
+
+/* ───────── 공통 기준값 중앙관리 탭 ───────── */
+
+function BaselineTab() {
+  const [b, setB] = useState<PlatformBaseline | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState<string | null>(null);
+  const [err, setErr] = useState<string | null>(null);
+  useEffect(() => {
+    fetchPlatformBaseline().then((d) =>
+      setB(d ?? { medianIncomeByHousehold: { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0, 7: 0 }, livingCostRatio: 0.6, baseYear: new Date().getFullYear() }),
+    );
+  }, []);
+  if (!b) return <Loading />;
+  const households = [1, 2, 3, 4, 5, 6, 7];
+  const numOf = (v: string) => Number(String(v).replace(/[^0-9]/g, "")) || 0;
+  const setMed = (h: number, v: number) => setB({ ...b, medianIncomeByHousehold: { ...b.medianIncomeByHousehold, [h]: v } });
+  const save = async () => {
+    setBusy(true); setErr(null); setMsg(null);
+    const { error } = await savePlatformBaseline(b);
+    if (error) setErr(error);
+    else setMsg("저장되었습니다. 각 사무소는 ‘설정·구독 → 사무소·기준값’에서 ‘운영자 권장값 적용’을 눌러 반영합니다.");
+    setBusy(false);
+  };
+  return (
+    <Card>
+      <CardHeader title="공통 기준값 (중앙 관리)" desc="기준 중위소득·생계비 비율의 전 사무소 권장값입니다. 매년 고시값으로 갱신하세요." action={<SlidersHorizontal size={15} className="text-brand" />} />
+      <div className="space-y-4 p-5">
+        <div className="grid gap-3 sm:grid-cols-2">
+          <Field label="기준 연도">
+            <Input value={String(b.baseYear)} inputMode="numeric" onChange={(e) => setB({ ...b, baseYear: numOf(e.target.value) })} />
+          </Field>
+          <Field label="생계비 인정 비율 (%)" hint="통상 60%">
+            <Input value={String(Math.round(b.livingCostRatio * 100))} inputMode="numeric" onChange={(e) => setB({ ...b, livingCostRatio: numOf(e.target.value) / 100 })} />
+          </Field>
+        </div>
+        <div>
+          <div className="mb-1.5 text-[12.5px] font-semibold text-ink-soft">가구원수별 기준 중위소득 (월, 원)</div>
+          <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+            {households.map((h) => (
+              <Field key={h} label={`${h}인 가구`}>
+                <Input value={b.medianIncomeByHousehold[h] ? String(b.medianIncomeByHousehold[h]) : ""} inputMode="numeric" onChange={(e) => setMed(h, numOf(e.target.value))} />
+              </Field>
+            ))}
+          </div>
+        </div>
+        {err && <div className="rounded-lg bg-danger-bg px-3 py-2 text-[13px] text-danger">{err}</div>}
+        {msg && <div className="rounded-lg bg-success-bg px-3 py-2 text-[13px] text-success">{msg}</div>}
+        <Button onClick={save} disabled={busy}>{busy ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />} 저장</Button>
+      </div>
+    </Card>
   );
 }
 
@@ -218,6 +274,31 @@ function DashboardTab({ overview, members }: { overview: Overview | null; member
           )}
         </Card>
       </div>
+
+      {/* 무료체험 전환 현황 */}
+      {(() => {
+        const list = members ?? [];
+        const total = list.length || 1;
+        const paid = list.filter((m) => !m.is_free && (m.plan === "pro" || m.plan === "team")).length;
+        const trial = list.filter((m) => m.is_free || m.plan === "free").length;
+        const rate = Math.round((paid / total) * 100);
+        const endingSoon = list.filter((m) => {
+          if (!(m.is_free || m.plan === "free") || !m.sub_until) return false;
+          const d = dday(m.sub_until);
+          return d !== null && d >= 0 && d <= 7;
+        }).length;
+        return (
+          <Card>
+            <CardHeader title="무료체험 전환 현황" desc="체험·무료 → 유료 구독 전환 (실결제 연동 시 정밀 집계)" />
+            <div className="grid grid-cols-2 divide-x divide-y divide-line-soft md:grid-cols-4 md:divide-y-0">
+              <Stat label="유료 전환" value={`${paid}곳`} tone="success" />
+              <Stat label="체험·무료" value={`${trial}곳`} />
+              <Stat label="전환율" value={`${rate}%`} tone="brand" />
+              <Stat label="체험 종료 임박(7일)" value={`${endingSoon}곳`} tone={endingSoon ? "danger" : undefined} />
+            </div>
+          </Card>
+        );
+      })()}
     </div>
   );
 }

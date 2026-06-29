@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { Plus, CalendarClock, MessageCircle, Mail, Check } from "lucide-react";
+import { Plus, CalendarClock, MessageCircle, Mail, Check, ChevronLeft, ChevronRight, List, CalendarDays } from "lucide-react";
 import { useStore } from "@/lib/store";
 import { PageHeader } from "@/components/AppShell";
 import { Card, CardHeader, Button, Badge, Field, EmptyState } from "@/components/ui";
@@ -16,6 +16,7 @@ export default function SchedulePage() {
   const store = useStore();
   const { events, cases, clientById } = store;
   const [open, setOpen] = useState(false);
+  const [view, setView] = useState<"list" | "calendar">("list");
 
   const sorted = useMemo(
     () => [...events].sort((a, b) => a.date.localeCompare(b.date)),
@@ -45,7 +46,18 @@ export default function SchedulePage() {
         }
       />
 
-      {sorted.length === 0 ? (
+      <div className="mb-4 inline-flex rounded-lg border border-line bg-surface p-1">
+        {([{ k: "list", l: "목록", I: List }, { k: "calendar", l: "캘린더", I: CalendarDays }] as const).map((v) => (
+          <button key={v.k} onClick={() => setView(v.k)}
+            className={`inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-[13px] font-medium transition-colors ${view === v.k ? "bg-brand-50 text-brand-700" : "text-muted hover:text-ink"}`}>
+            <v.I size={14} /> {v.l}
+          </button>
+        ))}
+      </div>
+
+      {view === "calendar" ? (
+        <MonthCalendar />
+      ) : sorted.length === 0 ? (
         <Card>
           <EmptyState icon={<CalendarClock size={32} />} title="등록된 일정이 없습니다" action={<Button onClick={() => setOpen(true)}><Plus size={16} /> 일정 추가</Button>} />
         </Card>
@@ -108,6 +120,78 @@ export default function SchedulePage() {
 
       <AddEventDialog open={open} onClose={() => setOpen(false)} />
     </div>
+  );
+}
+
+const pad2 = (n: number) => String(n).padStart(2, "0");
+const WEEKDAYS = ["일", "월", "화", "수", "목", "금", "토"];
+
+function MonthCalendar() {
+  const store = useStore();
+  const { events, cases, clientById } = store;
+  const [cursor, setCursor] = useState(() => { const d = new Date(); return new Date(d.getFullYear(), d.getMonth(), 1); });
+  const year = cursor.getFullYear();
+  const month = cursor.getMonth();
+  const firstW = new Date(year, month, 1).getDay();
+  const dim = new Date(year, month + 1, 0).getDate();
+  const t = new Date();
+  const todayStr = `${t.getFullYear()}-${pad2(t.getMonth() + 1)}-${pad2(t.getDate())}`;
+
+  const byDate = useMemo(() => {
+    const m: Record<string, ScheduleEvent[]> = {};
+    events.forEach((e) => { (m[e.date] = m[e.date] || []).push(e); });
+    return m;
+  }, [events]);
+
+  const cells: (number | null)[] = [];
+  for (let i = 0; i < firstW; i++) cells.push(null);
+  for (let d = 1; d <= dim; d++) cells.push(d);
+  while (cells.length % 7 !== 0) cells.push(null);
+  const dstr = (d: number) => `${year}-${pad2(month + 1)}-${pad2(d)}`;
+
+  return (
+    <Card>
+      <div className="flex items-center justify-between border-b border-line-soft px-5 py-3">
+        <div className="text-[15px] font-bold text-ink">{year}년 {month + 1}월</div>
+        <div className="flex items-center gap-1">
+          <button onClick={() => setCursor(new Date(year, month - 1, 1))} className="flex h-8 w-8 items-center justify-center rounded-lg text-muted hover:bg-surface-2"><ChevronLeft size={17} /></button>
+          <button onClick={() => { const d = new Date(); setCursor(new Date(d.getFullYear(), d.getMonth(), 1)); }} className="rounded-lg border border-line px-2.5 py-1 text-[12.5px] font-medium text-muted hover:bg-surface-2">오늘</button>
+          <button onClick={() => setCursor(new Date(year, month + 1, 1))} className="flex h-8 w-8 items-center justify-center rounded-lg text-muted hover:bg-surface-2"><ChevronRight size={17} /></button>
+        </div>
+      </div>
+      <div className="grid grid-cols-7 border-b border-line-soft">
+        {WEEKDAYS.map((w, i) => (
+          <div key={w} className={`py-2 text-center text-[12px] font-semibold ${i === 0 ? "text-danger" : i === 6 ? "text-info" : "text-muted"}`}>{w}</div>
+        ))}
+      </div>
+      <div className="grid grid-cols-7">
+        {cells.map((d, i) => {
+          if (d === null) return <div key={i} className="min-h-[92px] border-b border-r border-line-soft bg-surface-2/30" />;
+          const ds = dstr(d);
+          const evs = byDate[ds] ?? [];
+          const isToday = ds === todayStr;
+          const wd = i % 7;
+          return (
+            <div key={i} className="min-h-[92px] border-b border-r border-line-soft p-1.5">
+              <div className={`mb-1 inline-flex h-5 min-w-5 items-center justify-center rounded-full px-1 text-[11.5px] font-semibold ${isToday ? "bg-brand text-[#1a1305]" : wd === 0 ? "text-danger" : wd === 6 ? "text-info" : "text-ink-soft"}`}>{d}</div>
+              <div className="space-y-1">
+                {evs.slice(0, 3).map((e) => {
+                  const c = e.caseId ? cases.find((x) => x.id === e.caseId) : undefined;
+                  const cl = c ? clientById(c.clientId) : undefined;
+                  const chip = (
+                    <div className={`truncate rounded px-1.5 py-0.5 text-[11px] ${e.done ? "bg-surface-2 text-faint line-through" : "bg-brand-50 text-brand-700"}`} title={`${e.title}${cl ? " · " + cl.name : ""}`}>
+                      {e.title}
+                    </div>
+                  );
+                  return c ? <Link key={e.id} href={`/cases/${c.id}`}>{chip}</Link> : <div key={e.id}>{chip}</div>;
+                })}
+                {evs.length > 3 && <div className="px-1 text-[10.5px] text-faint">+{evs.length - 3}건</div>}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </Card>
   );
 }
 
