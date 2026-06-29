@@ -18,7 +18,7 @@ interface AuthApi {
   superAdmin: boolean; // 플랫폼 운영자(전체 회원·구독 관리)
   firmStatus: string | null; // approved | pending | rejected
   signIn: (email: string, password: string) => Promise<{ error?: string }>;
-  signUp: (email: string, password: string, firmName: string, name: string, phone: string, orgType?: "individual" | "org") => Promise<{ error?: string }>;
+  signUp: (email: string, password: string, firmName: string, name: string, phone: string, orgType?: "individual" | "org", inviteCode?: string) => Promise<{ error?: string }>;
   updatePassword: (newPassword: string) => Promise<{ error?: string }>;
   resetPassword: (email: string) => Promise<{ error?: string }>;
   findEmail: (name: string, phone: string) => Promise<{ email?: string | null; error?: string }>;
@@ -114,13 +114,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return error ? { error: error.message } : {};
   };
 
-  const signUp: AuthApi["signUp"] = async (email, password, firm, name, phone, orgType = "individual") => {
+  const signUp: AuthApi["signUp"] = async (email, password, firm, name, phone, orgType = "individual", inviteCode) => {
     const sb = getSupabase();
     if (!sb) return { error: "Supabase 미설정" };
     const { error } = await sb.auth.signUp({
       email,
       password,
-      options: { data: { firm_name: firm, name, phone, org_type: orgType } },
+      options: { data: { firm_name: firm, name, phone, org_type: orgType, invite_code: inviteCode?.trim() || undefined } },
     });
     return error ? { error: error.message } : {};
   };

@@ -19,6 +19,8 @@ export default function LoginPage() {
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [acctType, setAcctType] = useState<"individual" | "org">("individual");
+  const [joinMode, setJoinMode] = useState(false);
+  const [inviteCode, setInviteCode] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
@@ -53,6 +55,17 @@ export default function LoginPage() {
         const { error } = await auth.signIn(email.trim(), password);
         if (error) setError(translate(error));
         else router.replace("/dashboard");
+      } else if (mode === "signup" && joinMode) {
+        // 초대코드로 기존 사무소에 직원으로 합류
+        if (!inviteCode.trim()) { setError("초대 코드를 입력해주세요."); return; }
+        if (!name.trim() || !phone.trim()) { setError("이름과 전화번호를 입력해주세요."); return; }
+        const { error } = await auth.signUp(email.trim(), password, "", name.trim(), phone.trim(), "individual", inviteCode.trim());
+        if (error) setError(translate(error));
+        else {
+          const r = await auth.signIn(email.trim(), password);
+          if (r.error) setNotice("가입 완료! 이메일 인증 후 로그인해주세요.");
+          else router.replace("/dashboard");
+        }
       } else if (mode === "signup") {
         if (!firm.trim() || !name.trim()) {
           setError("사무소명과 이름을 입력해주세요.");
@@ -172,29 +185,55 @@ export default function LoginPage() {
             <div className="space-y-3">
               {mode === "signup" && (
                 <>
-                  <Field label="가입 유형">
-                    <div className="flex gap-1.5">
-                      {([
-                        { v: "individual", l: "개인", d: "즉시 이용" },
-                        { v: "org", l: "단체(회사)", d: "승인 후 이용" },
-                      ] as const).map((o) => (
-                        <button
-                          key={o.v}
-                          type="button"
-                          onClick={() => setAcctType(o.v)}
-                          className={`flex-1 rounded-lg border px-3 py-2 text-left transition-colors ${
-                            acctType === o.v ? "border-brand bg-brand-50" : "border-line hover:bg-surface-2"
-                          }`}
-                        >
-                          <div className={`text-[13.5px] font-semibold ${acctType === o.v ? "text-brand-700" : "text-ink"}`}>{o.l}</div>
-                          <div className="text-[11px] text-muted">{o.d}</div>
-                        </button>
-                      ))}
-                    </div>
-                  </Field>
-                  <Field label={acctType === "org" ? "법인·사무소명" : "상호(사무소명)"} hint={acctType === "individual" ? "없으면 본인 이름으로 입력" : undefined}>
-                    <Input value={firm} onChange={(e) => setFirm(e.target.value)} placeholder={acctType === "org" ? "예: 신안법률사무소" : "예: 홍길동 법무사"} />
-                  </Field>
+                  <div className="flex rounded-lg border border-line bg-surface-2 p-1">
+                    {([
+                      { v: false, l: "새 사무소 개설" },
+                      { v: true, l: "초대코드로 합류" },
+                    ] as const).map((o) => (
+                      <button
+                        key={String(o.v)}
+                        type="button"
+                        onClick={() => setJoinMode(o.v)}
+                        className={`flex-1 rounded-md py-1.5 text-[12.5px] font-semibold transition-colors ${
+                          joinMode === o.v ? "bg-surface text-brand-700 shadow-[var(--shadow-card)]" : "text-muted"
+                        }`}
+                      >
+                        {o.l}
+                      </button>
+                    ))}
+                  </div>
+
+                  {joinMode ? (
+                    <Field label="초대 코드" hint="단체 대표가 발급한 코드를 입력하세요">
+                      <Input value={inviteCode} onChange={(e) => setInviteCode(e.target.value.toUpperCase())} placeholder="예: A1B2C3D" />
+                    </Field>
+                  ) : (
+                    <>
+                      <Field label="가입 유형">
+                        <div className="flex gap-1.5">
+                          {([
+                            { v: "individual", l: "개인", d: "즉시 이용" },
+                            { v: "org", l: "단체(회사)", d: "승인 후 이용" },
+                          ] as const).map((o) => (
+                            <button
+                              key={o.v}
+                              type="button"
+                              onClick={() => setAcctType(o.v)}
+                              className={`flex-1 rounded-lg border px-3 py-2 text-left transition-colors ${
+                                acctType === o.v ? "border-brand bg-brand-50" : "border-line hover:bg-surface-2"
+                              }`}
+                            >
+                              <div className={`text-[13.5px] font-semibold ${acctType === o.v ? "text-brand-700" : "text-ink"}`}>{o.l}</div>
+                              <div className="text-[11px] text-muted">{o.d}</div>
+                            </button>
+                          ))}
+                        </div>
+                      </Field>
+                      <Field label={acctType === "org" ? "법인·사무소명" : "상호(사무소명)"} hint={acctType === "individual" ? "없으면 본인 이름으로 입력" : undefined}>
+                        <Input value={firm} onChange={(e) => setFirm(e.target.value)} placeholder={acctType === "org" ? "예: 신안법률사무소" : "예: 홍길동 법무사"} />
+                      </Field>
+                    </>
+                  )}
                   <Field label="담당자 이름">
                     <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="홍길동" />
                   </Field>

@@ -1,12 +1,14 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { UserCog, Lock, ShieldCheck, User as UserIcon, Loader2, Info } from "lucide-react";
+import { useCallback, useEffect, useState } from "react";
+import { UserCog, Lock, ShieldCheck, User as UserIcon, Loader2, Info, UserPlus, Copy, Check, Ban } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import { getSupabase } from "@/lib/supabase";
 import { PageHeader } from "@/components/AppShell";
-import { Card, CardHeader, Badge, EmptyState } from "@/components/ui";
+import { Card, CardHeader, Badge, EmptyState, Button } from "@/components/ui";
 import { PERMISSIONS } from "@/lib/permissions";
+
+interface Invite { id: number; code: string; role: string; active: boolean; created_at: string }
 
 interface Member {
   id: string;
@@ -130,17 +132,78 @@ export default function MembersPage() {
             </div>
           </Card>
 
-          <Card>
-            <div className="flex items-start gap-2 p-4 text-[12.5px] text-muted">
-              <Info size={15} className="mt-0.5 shrink-0 text-brand" />
-              <div>
-                <p className="font-semibold text-ink-soft">직원 추가 방법</p>
-                <p className="mt-0.5">현재는 가입 시 각자 새 사무소가 만들어집니다. 같은 사무소에 직원을 합류시키는 <b>초대 기능</b>은 다음 단계에서 추가할 수 있습니다. 합류한 직원은 여기서 관리자 지정·권한 부여가 가능합니다.</p>
-              </div>
-            </div>
-          </Card>
+          {members.some((m) => m.id === user?.id && m.role === "owner") && <InviteSection />}
         </div>
       )}
     </div>
+  );
+}
+
+function InviteSection() {
+  const [invites, setInvites] = useState<Invite[] | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+  const [copied, setCopied] = useState<string | null>(null);
+
+  const load = useCallback(async () => {
+    const sb = getSupabase();
+    if (!sb) return;
+    const { data, error } = await sb.from("invites").select("id, code, role, active, created_at").order("created_at", { ascending: false });
+    if (error) setErr(error.message); else setInvites((data ?? []) as Invite[]);
+  }, []);
+  useEffect(() => { load(); }, [load]);
+
+  const gen = async () => {
+    setBusy(true); setErr(null);
+    const sb = getSupabase();
+    const { error } = await sb!.rpc("create_invite", { p_role: "staff" });
+    if (error) setErr(error.message); else await load();
+    setBusy(false);
+  };
+  const revoke = async (id: number) => {
+    const sb = getSupabase();
+    const { error } = await sb!.from("invites").update({ active: false }).eq("id", id);
+    if (error) setErr(error.message); else await load();
+  };
+  const copy = async (code: string) => {
+    await navigator.clipboard.writeText(code);
+    setCopied(code); setTimeout(() => setCopied(null), 1500);
+  };
+
+  const active = (invites ?? []).filter((i) => i.active);
+
+  return (
+    <Card>
+      <CardHeader
+        title="직원 초대 (초대 코드)"
+        desc="코드를 발급해 직원에게 전달하세요. 직원은 회원가입 → ‘초대코드로 합류’에서 입력하면 이 사무소에 합류합니다."
+        action={<Button size="sm" onClick={gen} disabled={busy}>{busy ? <Loader2 size={13} className="animate-spin" /> : <UserPlus size={14} />} 코드 발급</Button>}
+      />
+      <div className="p-5">
+        {err && <div className="mb-3 rounded-lg bg-danger-bg px-3 py-2 text-[13px] text-danger">{err}</div>}
+        {invites === null ? (
+          <div className="flex items-center gap-2 py-4 text-muted"><Loader2 size={16} className="animate-spin" /> 불러오는 중…</div>
+        ) : active.length === 0 ? (
+          <p className="py-3 text-center text-[13px] text-muted">활성 초대 코드가 없습니다. ‘코드 발급’으로 새 코드를 만드세요.</p>
+        ) : (
+          <ul className="space-y-2">
+            {active.map((i) => (
+              <li key={i.id} className="flex items-center gap-3 rounded-lg border border-line-soft px-3 py-2.5">
+                <code className="rounded-md bg-surface-2 px-2.5 py-1 text-[15px] font-bold tracking-widest text-ink">{i.code}</code>
+                <Badge tone="muted">{i.role === "owner" ? "관리자" : "직원"}</Badge>
+                <span className="text-[11px] text-faint">{i.created_at.slice(0, 10)}</span>
+                <div className="ml-auto flex items-center gap-1">
+                  <button onClick={() => copy(i.code)} title="복사" className="flex h-8 items-center gap-1 rounded-lg border border-line px-2.5 text-[12px] font-medium text-muted hover:bg-surface-2">
+                    {copied === i.code ? <Check size={13} className="text-success" /> : <Copy size={13} />} {copied === i.code ? "복사됨" : "복사"}
+                  </button>
+                  <button onClick={() => revoke(i.id)} title="사용 중지" className="flex h-8 w-8 items-center justify-center rounded-lg text-faint hover:bg-surface-2 hover:text-danger"><Ban size={15} /></button>
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+        <p className="mt-3 text-[11.5px] text-faint">※ 합류한 직원은 위 목록에서 관리자 지정·권한 부여가 가능합니다. 코드는 여러 번 사용할 수 있으니, 다 쓰면 ‘사용 중지’ 하세요.</p>
+      </div>
+    </Card>
   );
 }
