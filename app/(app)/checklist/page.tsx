@@ -1,10 +1,11 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { ListChecks, ExternalLink, Copy, Check, FileText, Zap, Loader2 } from "lucide-react";
+import { ListChecks, ExternalLink, Copy, Check, FileText, Zap, Loader2, Paperclip } from "lucide-react";
 import { useStore } from "@/lib/store";
 import { PageHeader } from "@/components/AppShell";
 import { Card, CardHeader, Button, Badge, Input, EmptyState } from "@/components/ui";
+import { CaseUploads } from "@/components/CaseUploads";
 import { caseTypeLabel, formatDate } from "@/lib/format";
 import { DOC_MASTER, DOC_CATEGORY_LABEL, docsForType, type DocCategory, type DocSpec } from "@/lib/docChecklist";
 import { isCodefDoc } from "@/lib/codef";
@@ -25,6 +26,7 @@ export default function ChecklistPage() {
   const [caseId, setCaseId] = useState(store.cases[0]?.id ?? "");
   const [copied, setCopied] = useState(false);
   const [issuing, setIssuing] = useState<string | null>(null);
+  const [openUp, setOpenUp] = useState<string | null>(null);
 
   const c = store.caseById(caseId);
   const checks = store.docChecksForCase(caseId);
@@ -183,6 +185,7 @@ export default function ChecklistPage() {
                 {list.map((d) => {
                   const cur = statusOf(d.key);
                   const rec = checkOf(d.key);
+                  const upCount = store.uploadsForCase(caseId).filter((u) => u.docKey === d.key).length;
                   return (
                     <div key={d.key} className="px-5 py-3">
                       <div className="flex flex-wrap items-center justify-between gap-2">
@@ -202,6 +205,15 @@ export default function ChecklistPage() {
                           </div>
                         </div>
                         <div className="flex shrink-0 items-center gap-1">
+                          <button
+                            onClick={() => setOpenUp(openUp === d.key ? null : d.key)}
+                            title="받은 서류 파일 첨부"
+                            className={`mr-1 inline-flex items-center gap-1 rounded-md border px-2 py-1 text-[12px] font-semibold transition-colors ${
+                              upCount > 0 ? "border-brand bg-brand-50 text-brand-700" : "border-line text-muted hover:bg-surface-2"
+                            }`}
+                          >
+                            <Paperclip size={12} /> 첨부{upCount > 0 ? ` ${upCount}` : ""}
+                          </button>
                           {isCodefDoc(d.key) && cur !== "done" && (
                             <button
                               onClick={() => autoIssue(d)}
@@ -232,6 +244,11 @@ export default function ChecklistPage() {
                           placeholder="메모 (예: 어느 기관에 요청, 예상 발급일 등)"
                           className="mt-2 h-8 text-[12.5px]"
                         />
+                      )}
+                      {openUp === d.key && (
+                        <div className="mt-3 rounded-lg border border-line-soft bg-surface-2 p-3">
+                          <CaseUploads caseId={caseId} docKey={d.key} compact />
+                        </div>
                       )}
                     </div>
                   );
