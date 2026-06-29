@@ -303,7 +303,7 @@ function DashboardTab({ overview, members }: { overview: Overview | null; member
       <Card>
         <div className="grid grid-cols-2 divide-x divide-y divide-line-soft md:grid-cols-4 md:divide-y-0">
           <Stat label="전체 가입자" value={`${overview.members}명`} sub={`사무소 ${overview.firms}곳`} />
-          <Stat label="활성 구독" value={`${overview.active_subs}곳`} tone="success" sub={`무료 ${overview.free}곳`} />
+          <Stat label="활성 구독" value={`${overview.active_subs}`} tone="success" sub={`무료 ${overview.free}곳`} />
           <Stat label="최근 30일 신규" value={`${overview.new_30d}명`} tone="brand" />
           <Stat label="월 구독 매출(추정)" value={won(overview.mrr)} sub="활성·유료 기준" />
         </div>
