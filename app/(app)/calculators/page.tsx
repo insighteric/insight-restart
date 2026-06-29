@@ -112,7 +112,32 @@ export default function CalculatorsPage() {
       </div>
 
       <SongdalCalc />
+      <LivingCostRef />
     </div>
+  );
+}
+
+function LivingCostRef() {
+  const items = [
+    { t: "의료비·요양비", d: "본인·부양가족의 지속적 치료비, 요양·간병비" },
+    { t: "장애·중증질환 추가비용", d: "장애인·중증환자 부양에 따른 추가 지출" },
+    { t: "양육·교육비", d: "미성년 자녀 보육료·교육비 (일정 범위)" },
+    { t: "과다 임차료 일부", d: "주거비가 과다한 경우 일부 인정" },
+    { t: "직업 유지 필수비용", d: "업무상 반드시 필요한 비용 등" },
+  ];
+  return (
+    <Card className="mt-4">
+      <CardHeader title="추가생계비 인정 기준 (참고)" desc="기준 중위소득 외에 법원이 추가로 인정할 수 있는 생계비 항목입니다." action={<Info size={16} className="text-brand" />} />
+      <div className="divide-y divide-line-soft">
+        {items.map((it, i) => (
+          <div key={i} className="px-5 py-3">
+            <div className="text-[13.5px] font-semibold text-ink">{it.t}</div>
+            <div className="text-[12.5px] text-muted">{it.d}</div>
+          </div>
+        ))}
+      </div>
+      <div className="px-5 py-3 text-[11.5px] text-faint">※ 인정 여부·금액은 법원 심사와 개별 사정(소명자료)에 따라 결정됩니다. 관할 법원(예: 서울회생법원) 실무준칙을 확인하세요.</div>
+    </Card>
   );
 }
 

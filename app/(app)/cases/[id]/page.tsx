@@ -240,6 +240,7 @@ function Overview({ caseId }: { caseId: string }) {
   const store = useStore();
   const c = store.caseById(caseId)!;
   const s = store.settings;
+  const client = store.clientById(c.clientId);
 
   const debt = totalDebt(c.creditors);
   const liq = liquidationValue(c.assets);
@@ -248,8 +249,39 @@ function Overview({ caseId }: { caseId: string }) {
   const plan = useMemo(() => suggestPlan(c.income, c.assets, c.creditors, s, 36), [c, s]);
   const suit = useMemo(() => assessSuitability(c.income, c.assets, c.creditors, s), [c, s]);
 
+  const printReport = () => {
+    const rec = suit.recommend === "rehab" ? "개인회생" : suit.recommend === "bankruptcy" ? "개인파산" : "추가 검토 필요";
+    const reasons = suit.reasons.map((r) => `<li>${r.replace(/</g, "&lt;")}</li>`).join("");
+    const w = window.open("", "_blank");
+    if (!w) return;
+    w.document.write(`<html><head><meta charset="utf-8"><title>상담 결과 리포트 - ${client?.name ?? ""}</title>
+<style>body{font-family:-apple-system,Segoe UI,sans-serif;max-width:720px;margin:auto;padding:40px;color:#111}h1{font-size:22px}h2{font-size:15px;margin-top:24px;border-bottom:1px solid #ddd;padding-bottom:6px}table{width:100%;border-collapse:collapse;margin-top:8px}td{padding:6px 4px;font-size:14px;border-bottom:1px solid #eee}td:last-child{text-align:right;font-weight:600}.rec{display:inline-block;margin-top:8px;padding:6px 14px;border-radius:8px;background:#f4ecd8;font-weight:700}.note{margin-top:24px;font-size:12px;color:#888;line-height:1.6}ul{font-size:13.5px;line-height:1.7}</style></head><body>
+<h1>개인회생·파산 상담 결과 리포트</h1>
+<div>의뢰인: <b>${client?.name ?? "-"}</b>${client?.phone ? ` · ${client.phone}` : ""} · 작성일 ${new Date().toLocaleDateString("ko-KR")}</div>
+<h2>추천 절차</h2><div class="rec">${rec}</div>
+<h2>재무 요약</h2><table>
+<tr><td>월 소득(세후)</td><td>${won(c.income.monthlyIncome)}</td></tr>
+<tr><td>인정 생계비</td><td>${won(lc)}</td></tr>
+<tr><td>월 가용소득</td><td>${won(disp)}</td></tr>
+<tr><td>총 채무</td><td>${won(debt)}</td></tr>
+<tr><td>청산가치</td><td>${won(liq)}</td></tr>
+</table>
+<h2>변제계획 추정 (개인회생 36개월 기준)</h2><table>
+<tr><td>월 변제액(추정)</td><td>${won(plan.monthly)}</td></tr>
+<tr><td>총 변제액</td><td>${won(plan.total)}</td></tr>
+<tr><td>예상 변제율</td><td>${pct(plan.repaymentRate)}</td></tr>
+</table>
+<h2>진단 근거</h2><ul>${reasons}</ul>
+<div class="note">※ 본 리포트는 입력값 기반 참고용 자동 추정이며, 실제 인가 여부·변제액은 법원 심사와 개별 사정에 따라 달라집니다. 정확한 진단은 담당자의 최종 검토가 필요합니다. — Insight Restart</div>
+</body></html>`);
+    w.document.close(); w.focus(); w.print();
+  };
+
   return (
     <div className="space-y-4">
+      <div className="flex justify-end">
+        <Button variant="secondary" size="sm" onClick={printReport}><FileText size={14} /> 상담 리포트 출력</Button>
+      </div>
       <IncomeEditor caseId={caseId} />
       <CourtLookup caseId={caseId} />
       <div className="grid gap-4 lg:grid-cols-3">
@@ -724,16 +756,33 @@ function CourtLookup({ caseId }: { caseId: string }) {
 function CreditorEditor({ caseId }: { caseId: string }) {
   const store = useStore();
   const c = store.caseById(caseId)!;
+  const client = store.clientById(c.clientId);
   const set = (list: Creditor[]) => store.updateCase(caseId, { creditors: list });
   const upd = (id: string, patch: Partial<Creditor>) => set(c.creditors.map((x) => (x.id === id ? { ...x, ...patch } : x)));
   const total = c.creditors.reduce((s, x) => s + x.principal + x.interest, 0);
   const add = () => set([...c.creditors, { id: uid("cr"), name: "", category: "card", principal: 0, interest: 0 }]);
+  const exportCsv = () => {
+    const rows: (string | number)[][] = [
+      ["번호", "채권자명", "구분", "원금", "이자·연체", "합계"],
+      ...c.creditors.map((cr, i) => [i + 1, cr.name, creditorCatLabel[cr.category], cr.principal, cr.interest, cr.principal + cr.interest]),
+    ];
+    const csv = "﻿" + rows.map((r) => r.map((x) => `"${String(x).replace(/"/g, '""')}"`).join(",")).join("\r\n");
+    const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
+    const a = document.createElement("a");
+    a.href = url; a.download = `채권자목록_${client?.name ?? "사건"}.csv`; a.click();
+    URL.revokeObjectURL(url);
+  };
   return (
     <Card>
       <CardHeader
         title="채권자 목록"
         desc={`${c.creditors.length}개 · 총 ${won(total)}`}
-        action={<Button size="sm" onClick={add}><Plus size={14} /> 채권자 추가</Button>}
+        action={
+          <div className="flex gap-1.5">
+            {c.creditors.length > 0 && <Button size="sm" variant="secondary" onClick={exportCsv}><Download size={13} /> CSV</Button>}
+            <Button size="sm" onClick={add}><Plus size={14} /> 채권자 추가</Button>
+          </div>
+        }
       />
       {c.creditors.length === 0 ? (
         <EmptyState title="등록된 채권자가 없습니다" desc="‘채권자 추가’로 직접 입력하세요. 신용정보조회서·부채증명서를 참고하거나, 거래내역 분석 결과를 활용할 수 있습니다." action={<Button variant="secondary" onClick={add}><Plus size={15} /> 채권자 추가</Button>} />
