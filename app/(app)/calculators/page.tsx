@@ -110,7 +110,54 @@ export default function CalculatorsPage() {
           </Card>
         </div>
       </div>
+
+      <SongdalCalc />
     </div>
+  );
+}
+
+function SongdalCalc() {
+  const [type, setType] = useState<"rehab" | "bankruptcy">("rehab");
+  const [creditors, setCreditors] = useState(10);
+  const [unit, setUnit] = useState(5200);
+  const [addPersons, setAddPersons] = useState(3);
+  const [rounds, setRounds] = useState(10);
+  const songdal = (creditors + addPersons) * unit * rounds;
+  const stamp = type === "rehab" ? 30000 : 2000; // 회생 인지대 3만 / 파산+면책 각 1천
+  const totalPrepay = songdal + stamp;
+  const setT = (t: "rehab" | "bankruptcy") => { setType(t); setRounds(t === "rehab" ? 10 : 4); };
+
+  return (
+    <Card className="mt-4">
+      <CardHeader title="송달료 · 인지대 계산기" desc="법원 예납금(송달료+인지대)을 미리 계산합니다. 단가·횟수·인지대는 관할 법원·시기에 따라 다를 수 있어 조정하세요." action={<Scale size={16} className="text-brand" />} />
+      <div className="grid gap-4 p-5 lg:grid-cols-2">
+        <div className="space-y-3">
+          <div className="flex gap-2">
+            {(["rehab", "bankruptcy"] as const).map((t) => (
+              <button key={t} onClick={() => setT(t)} className={`flex-1 rounded-lg border py-2 text-sm font-semibold transition-colors ${type === t ? "border-brand bg-brand-50 text-brand-700" : "border-line text-muted hover:bg-surface-2"}`}>
+                {t === "rehab" ? "개인회생" : "개인파산·면책"}
+              </button>
+            ))}
+          </div>
+          <Field label="채권자 수"><Input type="number" value={creditors} onChange={(e) => setCreditors(Math.max(0, Number(e.target.value)))} /></Field>
+          <Field label="1회 송달료 단가 (원)" hint="현재 1회 5,200원"><Input type="number" value={unit} onChange={(e) => setUnit(Number(e.target.value))} /></Field>
+          <Field label="가산 인원" hint="채무자·법원 등 송달 대상 가산(통상 +3)"><Input type="number" value={addPersons} onChange={(e) => setAddPersons(Math.max(0, Number(e.target.value)))} /></Field>
+          <Field label="송달 횟수" hint={type === "rehab" ? "개인회생 통상 10회" : "개인파산 통상 4회"}><Input type="number" value={rounds} onChange={(e) => setRounds(Math.max(1, Number(e.target.value)))} /></Field>
+        </div>
+        <div className="space-y-3">
+          <div className="rounded-xl bg-brand p-5 text-white">
+            <div className="text-[13px] text-brand-100">법원 예납 총액 (송달료 + 인지대)</div>
+            <div className="mt-1 text-3xl font-bold tabular-nums">{won(totalPrepay)}</div>
+          </div>
+          <ResultRow label="송달료" value={won(songdal)} sub={`(${creditors} + ${addPersons}) × ${unit.toLocaleString()}원 × ${rounds}회`} />
+          <ResultRow label="인지대" value={won(stamp)} sub={type === "rehab" ? "개인회생 정액 30,000원" : "파산 1,000 + 면책 1,000"} />
+          <div className="flex items-start gap-2 rounded-lg bg-surface-2 p-3 text-[12.5px] text-ink-soft">
+            <Info size={15} className="mt-0.5 shrink-0 text-brand" />
+            송달료 단가·횟수와 인지대는 법원·시기에 따라 달라질 수 있습니다. 실제 납부 전 관할 법원 기준을 확인하세요.
+          </div>
+        </div>
+      </div>
+    </Card>
   );
 }
 

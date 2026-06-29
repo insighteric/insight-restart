@@ -6,11 +6,14 @@ export type CaseType = "rehab" | "bankruptcy"; // 개인회생 / 개인파산
 // 절차 단계. 개인회생과 파산이 단계가 다르므로 공통 키 + 라벨 매핑으로 처리.
 export type RehabStage =
   | "consult" // 상담
+  | "contract" // 계약(수임)
   | "prepare" // 서류 준비
-  | "filed" // 신청서 접수
+  | "filed" // 신청서 접수/제출
+  | "injunction" // 금지·중지명령
   | "correction" // 보정 진행
   | "opened" // 개시결정
   | "creditors" // 채권자목록·이의기간
+  | "meeting" // 채권자집회기일
   | "confirmed" // 변제계획 인가
   | "repaying" // 변제 수행
   | "discharged" // 면책
@@ -18,11 +21,13 @@ export type RehabStage =
 
 export type BankruptcyStage =
   | "consult"
+  | "contract" // 계약(수임)
   | "prepare"
   | "filed"
   | "correction"
   | "declared" // 파산선고
   | "meeting" // 채권자집회/의견청취
+  | "distribution" // 재산 환가·배당
   | "discharge_exam" // 면책심문
   | "discharged" // 면책결정
   | "closed";
