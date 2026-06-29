@@ -233,6 +233,18 @@ export interface Referral {
   updatedAt: string;
 }
 
+// 첨부 서류 파일 — 의뢰인/기관에서 받은 실제 파일(Supabase Storage)
+export interface CaseUpload {
+  id: string;
+  caseId: string;
+  name: string; // 원본 파일명
+  path: string; // storage 경로 {firm_id}/{case_id}/{id}-{name}
+  size: number; // bytes
+  mime: string;
+  docKey?: string; // 체크리스트 항목과 연결(선택)
+  uploadedAt: string; // ISO
+}
+
 // 서류 체크리스트 — 사건별 서류 준비 상태
 export type DocCheckStatus = "todo" | "requested" | "done" | "na"; // 미비/발급요청/완료/해당없음
 export interface CaseDocCheck {

@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { useStore } from "@/lib/store";
 import { Card, CardHeader, Badge, Button, EmptyState, Stat, Field, Input } from "@/components/ui";
+import { CaseUploads } from "@/components/CaseUploads";
 import type { Creditor, Asset, AssetCategory, IncomeExpense } from "@/lib/types";
 
 const uid = (p: string) => `${p}_${Date.now().toString(36)}_${Math.floor(Math.random() * 1e4).toString(36)}`;
@@ -129,6 +130,8 @@ export default function CaseDetailPage() {
       {tab === "재산" && <AssetEditor caseId={c.id} />}
       {tab === "변제계획" && <PlanTab caseId={c.id} />}
       {tab === "일정·서류" && (
+        <div className="space-y-4">
+        <CaseUploads caseId={c.id} />
         <div className="grid gap-4 lg:grid-cols-2">
           <Card>
             <CardHeader title="일정·기한" action={<Link href="/schedule" className="text-[13px] font-semibold text-brand hover:underline">관리</Link>} />
@@ -172,6 +175,7 @@ export default function CaseDetailPage() {
               </div>
             )}
           </Card>
+        </div>
         </div>
       )}
     </div>

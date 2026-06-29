@@ -15,6 +15,7 @@ import type {
   CaseLog,
   CaseDocCheck,
   Referral,
+  CaseUpload,
 } from "./types";
 import {
   seedCases,
@@ -40,6 +41,7 @@ interface DB {
   caseLogs: CaseLog[];
   docChecks: CaseDocCheck[];
   referrals: Referral[];
+  uploads: CaseUpload[];
   subscription: Subscription;
   settings: Settings;
 }
@@ -54,6 +56,7 @@ const initial: DB = {
   caseLogs: seedCaseLogs,
   docChecks: seedDocChecks,
   referrals: seedReferrals,
+  uploads: [],
   subscription: seedSubscription,
   settings: DEFAULT_SETTINGS,
 };
@@ -75,6 +78,9 @@ interface StoreApi extends DB {
   removeCaseLog: (id: string) => void;
   docChecksForCase: (caseId: string) => CaseDocCheck[];
   setDocCheck: (caseId: string, docKey: string, patch: Partial<CaseDocCheck>) => void;
+  uploadsForCase: (caseId: string) => CaseUpload[];
+  addUpload: (u: CaseUpload) => void;
+  removeUpload: (id: string) => void;
   referralForCase: (caseId: string) => Referral | undefined;
   addReferral: (r: Referral) => void;
   updateReferral: (id: string, patch: Partial<Referral>) => void;
@@ -193,6 +199,10 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         };
         return { ...s, docChecks: [created, ...s.docChecks] };
       }),
+    uploadsForCase: (caseId) =>
+      db.uploads.filter((u) => u.caseId === caseId).sort((a, b) => b.uploadedAt.localeCompare(a.uploadedAt)),
+    addUpload: (u) => setDb((s) => ({ ...s, uploads: [u, ...(s.uploads ?? [])] })),
+    removeUpload: (id) => setDb((s) => ({ ...s, uploads: (s.uploads ?? []).filter((u) => u.id !== id) })),
     referralForCase: (caseId) => db.referrals.find((r) => r.caseId === caseId),
     addReferral: (r) => setDb((s) => ({ ...s, referrals: [r, ...s.referrals] })),
     updateReferral: (id, patch) =>
