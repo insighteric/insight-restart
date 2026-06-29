@@ -2,13 +2,15 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { HelpCircle, Search, ChevronDown, Printer, Rocket } from "lucide-react";
+import { HelpCircle, Search, ChevronDown, Printer, Rocket, Lock } from "lucide-react";
 import { PageHeader } from "@/components/AppShell";
 import { Card, Button, Badge } from "@/components/ui";
 import { HelpBlocks } from "@/components/HelpBlocks";
 import { HELP, HELP_FLAT } from "@/lib/help";
+import { useAuth } from "@/lib/auth";
 
 export default function HelpPage() {
+  const { can } = useAuth();
   const [cat, setCat] = useState(HELP[0].id);
   const [q, setQ] = useState("");
   const [open, setOpen] = useState<string | null>("quickstart");
@@ -32,9 +34,13 @@ export default function HelpPage() {
         title="도움말 · 사용설명서"
         desc="카테고리에서 항목을 클릭하면 단계별 사용법이 펼쳐집니다."
         action={
-          <Link href="/manual-print" target="_blank">
-            <Button variant="secondary"><Printer size={15} /> 인쇄 / PDF</Button>
-          </Link>
+          can("print") ? (
+            <Link href="/manual-print" target="_blank">
+              <Button variant="secondary"><Printer size={15} /> 인쇄 / PDF</Button>
+            </Link>
+          ) : (
+            <Badge tone="muted"><Lock size={11} /> 인쇄·PDF 권한 필요</Badge>
+          )
         }
       />
 
@@ -88,7 +94,7 @@ export default function HelpPage() {
 
       <div className="mt-4 flex items-center gap-2 rounded-xl border border-line bg-surface-2 p-4 text-[12.5px] text-muted">
         <Rocket size={15} className="shrink-0 text-brand" />
-        <span>처음이시면 <b>시작하기 → 빠른 시작(5분 가이드)</b>부터 보세요. 인쇄·배포용 전체본은 우측 상단 <b>인쇄 / PDF</b> 버튼으로 받을 수 있습니다.</span>
+        <span>처음이시면 <b>시작하기 → 빠른 시작(5분 가이드)</b>부터 보세요. 인쇄·배포용 전체본은 우측 상단 <b>인쇄 / PDF</b> 버튼으로 받을 수 있습니다(인쇄·PDF 권한 필요 · 관리자 모드에서 권한 부여).</span>
       </div>
     </div>
   );

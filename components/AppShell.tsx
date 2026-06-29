@@ -14,12 +14,10 @@ import {
   Wrench,
   Settings,
   NotebookPen,
-  Wallet,
   ListChecks,
   LifeBuoy,
   Lock,
-  BarChart3,
-  UserCog,
+  ShieldCheck,
   Download,
   Sparkles,
   Search,
@@ -50,9 +48,6 @@ const NAV: {
   { href: "/referrals", label: "신복·새출발", icon: LifeBuoy },
   { href: "/schedule", label: "일정·기한", icon: CalendarClock },
   { href: "/calculators", label: "변제 계산기", icon: Calculator },
-  { href: "/payments", label: "분납관리", icon: Wallet, perm: "payments" },
-  { href: "/management", label: "경영 대시보드", icon: BarChart3, perm: "dashboard" },
-  { href: "/members", label: "멤버·권한", icon: UserCog, perm: "members" },
   { href: "/tools", label: "PDF 도구", icon: Wrench },
   { href: "/download", label: "다운로드", icon: Download },
   { href: "/help", label: "도움말", icon: HelpCircle },
@@ -64,8 +59,9 @@ const tierLabel: Record<string, string> = { free: "Free", pro: "Pro", team: "Tea
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const { subscription } = useStore();
-  const { configured, signOut, can } = useAuth();
+  const { configured, signOut, can, isAdmin } = useAuth();
   const nav = NAV.filter((item) => !item.perm || can(item.perm));
+  const anyAdmin = isAdmin || can("members") || can("dashboard") || can("payments") || can("print");
 
   return (
     <div className="flex min-h-screen bg-canvas">
@@ -78,6 +74,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             <div className="text-[15px] font-extrabold tracking-tight text-white">Insight Restart</div>
             <div className="text-[10px] font-semibold text-brand-300">개인회생·파산 AI 실무</div>
           </div>
+          {anyAdmin && (
+            <span className="ml-auto rounded-md bg-brand px-1.5 py-0.5 text-[10px] font-extrabold tracking-wide text-[#1a1305]">ADMIN</span>
+          )}
         </div>
 
         <nav className="flex-1 space-y-0.5 overflow-y-auto px-3 py-2">
@@ -102,6 +101,17 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             );
           })}
         </nav>
+
+        {anyAdmin && (
+          <Link
+            href="/admin"
+            className={`mx-3 mt-1 flex items-center justify-center gap-1.5 rounded-lg py-2.5 text-[13px] font-bold transition-colors ${
+              pathname.startsWith("/admin") ? "bg-brand text-[#1a1305]" : "bg-brand/90 text-[#1a1305] hover:bg-brand"
+            }`}
+          >
+            <ShieldCheck size={15} /> 관리자 모드
+          </Link>
+        )}
 
         <div className="m-3 rounded-xl border border-sidebar-line bg-sidebar-2 p-3.5">
           <div className="flex items-center justify-between">
@@ -180,7 +190,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         </header>
 
         {/* Mobile nav */}
-        <MobileNav pathname={pathname} items={nav} />
+        <MobileNav
+          pathname={pathname}
+          items={anyAdmin ? [...nav, { href: "/admin", label: "관리자 모드", icon: ShieldCheck }] : nav}
+        />
 
         <main className="min-w-0 flex-1 px-5 py-6 sm:px-7 lg:px-9">
           <div className="mx-auto w-full max-w-6xl animate-in">{children}</div>
