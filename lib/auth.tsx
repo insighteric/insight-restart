@@ -16,8 +16,9 @@ interface AuthApi {
   permissions: string[];
   can: (key: string) => boolean; // owner/데모 → 항상 true
   superAdmin: boolean; // 플랫폼 운영자(전체 회원·구독 관리)
+  firmStatus: string | null; // approved | pending | rejected
   signIn: (email: string, password: string) => Promise<{ error?: string }>;
-  signUp: (email: string, password: string, firmName: string, name: string, phone: string) => Promise<{ error?: string }>;
+  signUp: (email: string, password: string, firmName: string, name: string, phone: string, orgType?: "individual" | "org") => Promise<{ error?: string }>;
   updatePassword: (newPassword: string) => Promise<{ error?: string }>;
   resetPassword: (email: string) => Promise<{ error?: string }>;
   findEmail: (name: string, phone: string) => Promise<{ email?: string | null; error?: string }>;
@@ -35,6 +36,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [role, setRole] = useState<string | null>(null);
   const [permissions, setPermissions] = useState<string[]>([]);
   const [superAdmin, setSuperAdmin] = useState(false);
+  const [firmStatus, setFirmStatus] = useState<string | null>(null);
 
   const loadFirm = useCallback(async (u: User | null) => {
     const sb = getSupabase();
@@ -44,13 +46,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setRole(null);
       setPermissions([]);
       setSuperAdmin(false);
+      setFirmStatus(null);
       setTrackContext(null, null);
       return;
     }
     try {
       const { data } = await sb
         .from("members")
-        .select("firm_id, role, permissions, super_admin, firms(name)")
+        .select("firm_id, role, permissions, super_admin, firms(name, status)")
         .eq("id", u.id)
         .single();
       if (data) {
@@ -59,9 +62,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setRole((data.role as string) ?? "staff");
         setPermissions(Array.isArray(data.permissions) ? (data.permissions as string[]) : []);
         setSuperAdmin(!!data.super_admin);
-        const firms = data.firms as unknown as { name?: string } | { name?: string }[] | null;
-        const name = Array.isArray(firms) ? firms[0]?.name : firms?.name;
-        setFirmName(name ?? null);
+        const firms = data.firms as unknown as { name?: string; status?: string } | { name?: string; status?: string }[] | null;
+        const firm = Array.isArray(firms) ? firms[0] : firms;
+        setFirmName(firm?.name ?? null);
+        setFirmStatus(firm?.status ?? "approved");
       }
     } catch {
       // 멤버 조회 실패해도 로그인 자체는 유지(로딩이 멈추지 않도록)
@@ -110,13 +114,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return error ? { error: error.message } : {};
   };
 
-  const signUp: AuthApi["signUp"] = async (email, password, firm, name, phone) => {
+  const signUp: AuthApi["signUp"] = async (email, password, firm, name, phone, orgType = "individual") => {
     const sb = getSupabase();
     if (!sb) return { error: "Supabase 미설정" };
     const { error } = await sb.auth.signUp({
       email,
       password,
-      options: { data: { firm_name: firm, name, phone } },
+      options: { data: { firm_name: firm, name, phone, org_type: orgType } },
     });
     return error ? { error: error.message } : {};
   };
@@ -153,6 +157,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setRole(null);
     setPermissions([]);
     setSuperAdmin(false);
+    setFirmStatus(null);
     setTrackContext(null, null);
   };
 
@@ -161,7 +166,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const can = (key: string) => isAdmin || permissions.includes(key);
 
   return (
-    <Ctx.Provider value={{ configured, loading, user, firmId, firmName, role, isAdmin, permissions, can, superAdmin, signIn, signUp, updatePassword, resetPassword, findEmail, signOut }}>
+    <Ctx.Provider value={{ configured, loading, user, firmId, firmName, role, isAdmin, permissions, can, superAdmin, firmStatus, signIn, signUp, updatePassword, resetPassword, findEmail, signOut }}>
       {children}
     </Ctx.Provider>
   );

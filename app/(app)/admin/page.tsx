@@ -5,6 +5,7 @@ import Link from "next/link";
 import {
   ShieldCheck, Users, BarChart3, Wallet, Lock, ChevronRight, Printer, Loader2,
   UserCheck, Crown, Pause, Play, Gift, CalendarPlus, TrendingUp, Megaphone, ClipboardCheck, Activity,
+  Building2, Check, X,
 } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import { getSupabase } from "@/lib/supabase";
@@ -81,7 +82,7 @@ function OperatorConsole() {
       {tab === "dashboard" && <DashboardTab overview={overview} members={members} />}
       {tab === "members" && <MembersTab members={members} reload={load} setErr={setErr} />}
       {tab === "stats" && <StatsTab />}
-      {tab === "approval" && <Placeholder icon={<ClipboardCheck size={28} />} title="승인 대기 없음" desc="현재는 가입 즉시 사용 가능합니다. 가입 승인제를 도입하면 여기에서 신규 가입을 승인/거절할 수 있습니다. (다음 단계)" />}
+      {tab === "approval" && <ApprovalTab />}
       {tab === "notice" && <Placeholder icon={<Megaphone size={28} />} title="공지사항 · 배너 관리" desc="전체 사용자에게 보일 공지·배너를 등록·관리합니다. (다음 단계)" />}
     </div>
   );
@@ -226,6 +227,63 @@ function Placeholder({ icon, title, desc }: { icon: React.ReactNode; title: stri
 }
 function Loading() {
   return <Card><div className="flex items-center justify-center gap-2 py-12 text-muted"><Loader2 size={18} className="animate-spin" /> 불러오는 중…</div></Card>;
+}
+
+/* ───────── 승인 대기 탭 (단체 가입) ───────── */
+
+interface PendingFirm {
+  firm_id: string; firm_name: string | null; org_type: string; status: string;
+  owner_name: string | null; owner_email: string | null; owner_phone: string | null; created_at: string;
+}
+function ApprovalTab() {
+  const [rows, setRows] = useState<PendingFirm[] | null>(null);
+  const [err, setErr] = useState<string | null>(null);
+  const [busy, setBusy] = useState<string | null>(null);
+  const load = useCallback(async () => {
+    const sb = getSupabase();
+    if (!sb) { setErr("로그인이 필요합니다."); return; }
+    const { data, error } = await sb.rpc("admin_pending_firms");
+    if (error) setErr(error.message); else setRows((data ?? []) as PendingFirm[]);
+  }, []);
+  useEffect(() => { load(); }, [load]);
+
+  const act = async (firm: string, status: "approved" | "rejected") => {
+    setBusy(firm + status); setErr(null);
+    const sb = getSupabase();
+    const { error } = await sb!.rpc("admin_set_firm_status", { p_firm: firm, p_status: status });
+    if (error) setErr(error.message); else await load();
+    setBusy(null);
+  };
+
+  if (!rows) return <Loading />;
+  if (rows.length === 0) return <Placeholder icon={<ClipboardCheck size={28} />} title="승인 대기 없음" desc="대기 중인 단체(회사) 가입 신청이 없습니다. 개인 가입은 승인 없이 즉시 이용됩니다." />;
+
+  return (
+    <div className="space-y-3">
+      {err && <div className="rounded-lg bg-danger-bg px-3 py-2 text-[13px] text-danger">{err}</div>}
+      {rows.map((r) => (
+        <Card key={r.firm_id}>
+          <div className="flex flex-wrap items-center gap-3 p-5">
+            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-brand-50 text-brand-700"><Building2 size={18} /></div>
+            <div className="min-w-0">
+              <div className="flex items-center gap-1.5 text-[14px] font-semibold text-ink">{r.firm_name}<Badge tone="muted">단체</Badge></div>
+              <div className="text-[12px] text-muted">{r.owner_name} · {r.owner_email}{r.owner_phone ? ` · ${r.owner_phone}` : ""}</div>
+              <div className="text-[11px] text-faint">신청 {r.created_at?.slice(0, 10)}</div>
+            </div>
+            <div className="ml-auto flex items-center gap-2">
+              <Button size="sm" disabled={busy === r.firm_id + "approved"} onClick={() => act(r.firm_id, "approved")}>
+                {busy === r.firm_id + "approved" ? <Loader2 size={13} className="animate-spin" /> : <Check size={14} />} 승인
+              </Button>
+              <button disabled={busy === r.firm_id + "rejected"} onClick={() => act(r.firm_id, "rejected")}
+                className="inline-flex h-8 items-center gap-1 rounded-lg border border-danger px-2.5 text-[12.5px] font-semibold text-danger hover:bg-danger-bg disabled:opacity-50">
+                <X size={14} /> 거절
+              </button>
+            </div>
+          </div>
+        </Card>
+      ))}
+    </div>
+  );
 }
 
 /* ───────── 통계 탭 (접속·사용량) ───────── */

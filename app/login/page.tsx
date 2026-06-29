@@ -18,6 +18,7 @@ export default function LoginPage() {
   const [firm, setFirm] = useState("");
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
+  const [acctType, setAcctType] = useState<"individual" | "org">("individual");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
@@ -61,10 +62,14 @@ export default function LoginPage() {
           setError("전화번호를 입력해주세요. (아이디 찾기에 사용됩니다)");
           return;
         }
-        const { error } = await auth.signUp(email.trim(), password, firm.trim(), name.trim(), phone.trim());
+        const { error } = await auth.signUp(email.trim(), password, firm.trim(), name.trim(), phone.trim(), acctType);
         if (error) setError(translate(error));
-        else {
-          // 자동 로그인 시도(이메일 확인이 꺼져 있으면 즉시 입장)
+        else if (acctType === "org") {
+          // 단체는 운영자 승인 후 이용 — 자동 로그인하지 않고 안내
+          setNotice("단체(회사) 가입 신청이 접수되었습니다. 운영자 승인 후 로그인하시면 이용할 수 있습니다.");
+          switchMode("login");
+        } else {
+          // 개인은 즉시 이용 — 자동 로그인(이메일 확인이 꺼져 있으면 즉시 입장)
           const r = await auth.signIn(email.trim(), password);
           if (r.error) setNotice("가입 완료! 이메일 인증 후 로그인해주세요.");
           else router.replace("/dashboard");
@@ -167,8 +172,28 @@ export default function LoginPage() {
             <div className="space-y-3">
               {mode === "signup" && (
                 <>
-                  <Field label="사무소명">
-                    <Input value={firm} onChange={(e) => setFirm(e.target.value)} placeholder="예: 신안법률사무소" />
+                  <Field label="가입 유형">
+                    <div className="flex gap-1.5">
+                      {([
+                        { v: "individual", l: "개인", d: "즉시 이용" },
+                        { v: "org", l: "단체(회사)", d: "승인 후 이용" },
+                      ] as const).map((o) => (
+                        <button
+                          key={o.v}
+                          type="button"
+                          onClick={() => setAcctType(o.v)}
+                          className={`flex-1 rounded-lg border px-3 py-2 text-left transition-colors ${
+                            acctType === o.v ? "border-brand bg-brand-50" : "border-line hover:bg-surface-2"
+                          }`}
+                        >
+                          <div className={`text-[13.5px] font-semibold ${acctType === o.v ? "text-brand-700" : "text-ink"}`}>{o.l}</div>
+                          <div className="text-[11px] text-muted">{o.d}</div>
+                        </button>
+                      ))}
+                    </div>
+                  </Field>
+                  <Field label={acctType === "org" ? "법인·사무소명" : "상호(사무소명)"} hint={acctType === "individual" ? "없으면 본인 이름으로 입력" : undefined}>
+                    <Input value={firm} onChange={(e) => setFirm(e.target.value)} placeholder={acctType === "org" ? "예: 신안법률사무소" : "예: 홍길동 법무사"} />
                   </Field>
                   <Field label="담당자 이름">
                     <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="홍길동" />
