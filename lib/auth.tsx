@@ -155,7 +155,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signOut = async () => {
     const sb = getSupabase();
-    await sb?.auth.signOut();
+    // signOut이 네트워크로 멈춰도 최대 1.5초 후 진행
+    try {
+      await Promise.race([
+        sb?.auth.signOut().then(() => {}) ?? Promise.resolve(),
+        new Promise((r) => setTimeout(r, 1500)),
+      ]);
+    } catch {
+      /* ignore */
+    }
+    // 로컬 세션 토큰까지 확실히 제거(키 이름이 바뀌어도 supabase 항목 모두 정리)
+    try {
+      if (typeof window !== "undefined") {
+        Object.keys(localStorage).forEach((k) => {
+          if (k.startsWith("sb-") || k.includes("supabase")) localStorage.removeItem(k);
+        });
+      }
+    } catch {
+      /* ignore */
+    }
     setUser(null);
     setFirmId(null);
     setFirmName(null);
@@ -164,6 +182,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setSuperAdmin(false);
     setFirmStatus(null);
     setTrackContext(null, null);
+    // 완전 새로고침으로 로그인 화면 이동(잔여 상태 제거)
+    if (typeof window !== "undefined") window.location.href = "/login";
   };
 
   // 데모(Supabase 미설정)에선 관리자 권한 부여, 그 외엔 owner만 관리자
