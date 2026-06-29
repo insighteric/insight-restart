@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { UserCog, Lock, ShieldCheck, User as UserIcon, Loader2, Info, UserPlus, Copy, Check, Ban, Activity } from "lucide-react";
+import { UserCog, Lock, ShieldCheck, User as UserIcon, Loader2, Info, UserPlus, Copy, Check, Ban, Activity, Mail } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import { getSupabase } from "@/lib/supabase";
 import { PageHeader } from "@/components/AppShell";
@@ -238,6 +238,15 @@ function InviteSection() {
     await navigator.clipboard.writeText(code);
     setCopied(code); setTimeout(() => setCopied(null), 1500);
   };
+  const mailInvite = (code: string) => {
+    const url = typeof window !== "undefined" ? window.location.origin : "https://insight-restart.vercel.app";
+    const subject = encodeURIComponent("[Insight Restart] 직원 초대 — 회생·파산 실무 플랫폼");
+    const body = encodeURIComponent(
+      `안녕하세요,\n\nInsight Restart(개인회생·파산 AI 실무 플랫폼)에 직원으로 초대합니다. 아래 절차로 가입해 주세요.\n\n` +
+      `1) ${url}/login 접속\n2) 회원가입 → '초대코드로 합류' 선택\n3) 초대 코드 입력: ${code}\n4) 이름·전화번호·이메일·비밀번호 입력 후 완료\n\n감사합니다.`,
+    );
+    window.location.href = `mailto:?subject=${subject}&body=${body}`;
+  };
 
   const active = (invites ?? []).filter((i) => i.active);
 
@@ -264,6 +273,9 @@ function InviteSection() {
                 <div className="ml-auto flex items-center gap-1">
                   <button onClick={() => copy(i.code)} title="복사" className="flex h-8 items-center gap-1 rounded-lg border border-line px-2.5 text-[12px] font-medium text-muted hover:bg-surface-2">
                     {copied === i.code ? <Check size={13} className="text-success" /> : <Copy size={13} />} {copied === i.code ? "복사됨" : "복사"}
+                  </button>
+                  <button onClick={() => mailInvite(i.code)} title="메일로 초대" className="flex h-8 items-center gap-1 rounded-lg border border-line px-2.5 text-[12px] font-medium text-muted hover:bg-surface-2">
+                    <Mail size={13} /> 메일
                   </button>
                   <button onClick={() => revoke(i.id)} title="사용 중지" className="flex h-8 w-8 items-center justify-center rounded-lg text-faint hover:bg-surface-2 hover:text-danger"><Ban size={15} /></button>
                 </div>

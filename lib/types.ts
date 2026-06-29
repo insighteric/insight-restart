@@ -285,4 +285,6 @@ export interface Settings {
   // 생계비 인정 비율(기준 중위소득 대비). 통상 60% 사용.
   livingCostRatio: number;
   baseYear: number;
+  // 직원은 담당(배정된) 사건만 화면에 표시(표시 필터 — 보안 격리 아님)
+  staffSeeAssignedOnly?: boolean;
 }

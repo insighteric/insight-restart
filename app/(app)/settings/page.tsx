@@ -227,6 +227,15 @@ export default function SettingsPage() {
               </button>
               {applyMsg && <p className="mt-1.5 text-[12px] text-success">{applyMsg}</p>}
             </div>
+            {auth.isAdmin && (
+              <label className="flex items-start gap-2.5 rounded-lg border border-line-soft p-3">
+                <input type="checkbox" checked={!!settings.staffSeeAssignedOnly} onChange={(e) => store.updateSettings({ staffSeeAssignedOnly: e.target.checked })} className="mt-0.5 accent-[var(--color-brand)]" />
+                <div>
+                  <div className="text-[13px] font-medium text-ink">직원은 담당 사건만 표시</div>
+                  <div className="text-[11.5px] text-muted">직원(비관리자)의 사건 목록을 본인 담당 사건으로 제한합니다. ※ 화면 표시 필터이며 데이터 접근을 완전히 차단하지는 않습니다.</div>
+                </div>
+              </label>
+            )}
             <div className="flex items-center justify-between">
               <button
                 onClick={() => {

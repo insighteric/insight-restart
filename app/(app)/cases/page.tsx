@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import { Plus, Search, Scale } from "lucide-react";
 import { useStore } from "@/lib/store";
+import { useAuth } from "@/lib/auth";
 import { PageHeader } from "@/components/AppShell";
 import { Card, Button, Badge, EmptyState } from "@/components/ui";
 import { CaseTypeBadge, CaseStatusBadge } from "@/components/CaseBits";
@@ -15,7 +16,9 @@ import type { CaseType } from "@/lib/types";
 type Filter = "all" | CaseType;
 
 export default function CasesPage() {
-  const { cases, clientById } = useStore();
+  const { cases, clientById, settings } = useStore();
+  const { isAdmin, memberName } = useAuth();
+  const staffOnly = !isAdmin && !!settings.staffSeeAssignedOnly && !!memberName;
   const [filter, setFilter] = useState<Filter>("all");
   const [q, setQ] = useState("");
   const [assignee, setAssignee] = useState("all");
@@ -25,6 +28,7 @@ export default function CasesPage() {
 
   const filtered = useMemo(() => {
     return cases.filter((c) => {
+      if (staffOnly && c.assignee !== memberName) return false;
       if (filter !== "all" && c.type !== filter) return false;
       if (assignee !== "all" && c.assignee !== assignee) return false;
       if (!q) return true;
@@ -32,7 +36,7 @@ export default function CasesPage() {
       const hay = `${cl?.name} ${cl?.phone} ${c.court} ${c.caseNo ?? ""}`.toLowerCase();
       return hay.includes(q.toLowerCase());
     });
-  }, [cases, filter, assignee, q, clientById]);
+  }, [cases, filter, assignee, q, clientById, staffOnly, memberName]);
 
   const tabs: { key: Filter; label: string; count: number }[] = [
     { key: "all", label: "전체", count: cases.length },
@@ -51,6 +55,12 @@ export default function CasesPage() {
           </Button>
         }
       />
+
+      {staffOnly && (
+        <div className="mb-3 rounded-lg bg-brand-50 px-3 py-2 text-[12.5px] text-brand-700">
+          담당 사건만 표시 중입니다 (내 담당: <b>{memberName}</b>). 전체 보기는 관리자에게 문의하세요.
+        </div>
+      )}
 
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <div className="flex gap-1 rounded-lg border border-line bg-surface p-1">

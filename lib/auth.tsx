@@ -17,6 +17,7 @@ interface AuthApi {
   can: (key: string) => boolean; // owner/데모 → 항상 true
   superAdmin: boolean; // 플랫폼 운영자(전체 회원·구독 관리)
   firmStatus: string | null; // approved | pending | rejected
+  memberName: string | null; // 현재 로그인 직원 이름(담당 사건 필터용)
   signIn: (email: string, password: string) => Promise<{ error?: string }>;
   signUp: (email: string, password: string, firmName: string, name: string, phone: string, orgType?: "individual" | "org", inviteCode?: string) => Promise<{ error?: string }>;
   updatePassword: (newPassword: string) => Promise<{ error?: string }>;
@@ -37,6 +38,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [permissions, setPermissions] = useState<string[]>([]);
   const [superAdmin, setSuperAdmin] = useState(false);
   const [firmStatus, setFirmStatus] = useState<string | null>(null);
+  const [memberName, setMemberName] = useState<string | null>(null);
 
   const loadFirm = useCallback(async (u: User | null) => {
     const sb = getSupabase();
@@ -47,13 +49,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setPermissions([]);
       setSuperAdmin(false);
       setFirmStatus(null);
+      setMemberName(null);
       setTrackContext(null, null);
       return;
     }
     try {
       // 1) 멤버 본인 정보(권한·운영자 플래그) — 사무소 조회와 분리해 견고하게
       const fetchMember = () =>
-        sb.from("members").select("firm_id, role, permissions, super_admin").eq("id", u.id).maybeSingle();
+        sb.from("members").select("firm_id, role, permissions, super_admin, name").eq("id", u.id).maybeSingle();
       let { data, error } = await fetchMember();
       // 세션 토큰이 만료돼 비인증으로 처리되면(행 없음/JWT 오류) 토큰 갱신 후 1회 재시도
       if ((!data || error) && u) {
@@ -66,6 +69,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setRole((data.role as string) ?? "staff");
         setPermissions(Array.isArray(data.permissions) ? (data.permissions as string[]) : []);
         setSuperAdmin(!!data.super_admin);
+        setMemberName((data.name as string) ?? null);
         // 2) 사무소 이름·승인상태(실패해도 권한엔 영향 없음)
         try {
           const { data: f } = await sb.from("firms").select("name, status").eq("id", data.firm_id as string).maybeSingle();
@@ -184,6 +188,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setPermissions([]);
     setSuperAdmin(false);
     setFirmStatus(null);
+    setMemberName(null);
     setTrackContext(null, null);
     // 완전 새로고침으로 로그인 화면 이동(잔여 상태 제거)
     if (typeof window !== "undefined") window.location.href = "/login";
@@ -194,7 +199,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const can = (key: string) => isAdmin || permissions.includes(key);
 
   return (
-    <Ctx.Provider value={{ configured, loading, user, firmId, firmName, role, isAdmin, permissions, can, superAdmin, firmStatus, signIn, signUp, updatePassword, resetPassword, findEmail, signOut }}>
+    <Ctx.Provider value={{ configured, loading, user, firmId, firmName, role, isAdmin, permissions, can, superAdmin, firmStatus, memberName, signIn, signUp, updatePassword, resetPassword, findEmail, signOut }}>
       {children}
     </Ctx.Provider>
   );
