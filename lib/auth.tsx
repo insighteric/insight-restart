@@ -14,6 +14,7 @@ interface AuthApi {
   isAdmin: boolean; // owner 또는 데모(미설정) 시 true
   permissions: string[];
   can: (key: string) => boolean; // owner/데모 → 항상 true
+  superAdmin: boolean; // 플랫폼 운영자(전체 회원·구독 관리)
   signIn: (email: string, password: string) => Promise<{ error?: string }>;
   signUp: (email: string, password: string, firmName: string, name: string, phone: string) => Promise<{ error?: string }>;
   updatePassword: (newPassword: string) => Promise<{ error?: string }>;
@@ -32,6 +33,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [firmName, setFirmName] = useState<string | null>(null);
   const [role, setRole] = useState<string | null>(null);
   const [permissions, setPermissions] = useState<string[]>([]);
+  const [superAdmin, setSuperAdmin] = useState(false);
 
   const loadFirm = useCallback(async (u: User | null) => {
     const sb = getSupabase();
@@ -40,18 +42,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setFirmName(null);
       setRole(null);
       setPermissions([]);
+      setSuperAdmin(false);
       return;
     }
     try {
       const { data } = await sb
         .from("members")
-        .select("firm_id, role, permissions, firms(name)")
+        .select("firm_id, role, permissions, super_admin, firms(name)")
         .eq("id", u.id)
         .single();
       if (data) {
         setFirmId(data.firm_id as string);
         setRole((data.role as string) ?? "staff");
         setPermissions(Array.isArray(data.permissions) ? (data.permissions as string[]) : []);
+        setSuperAdmin(!!data.super_admin);
         const firms = data.firms as unknown as { name?: string } | { name?: string }[] | null;
         const name = Array.isArray(firms) ? firms[0]?.name : firms?.name;
         setFirmName(name ?? null);
@@ -141,6 +145,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setFirmName(null);
     setRole(null);
     setPermissions([]);
+    setSuperAdmin(false);
   };
 
   // 데모(Supabase 미설정)에선 관리자 권한 부여, 그 외엔 owner만 관리자
@@ -148,7 +153,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const can = (key: string) => isAdmin || permissions.includes(key);
 
   return (
-    <Ctx.Provider value={{ configured, loading, user, firmId, firmName, role, isAdmin, permissions, can, signIn, signUp, updatePassword, resetPassword, findEmail, signOut }}>
+    <Ctx.Provider value={{ configured, loading, user, firmId, firmName, role, isAdmin, permissions, can, superAdmin, signIn, signUp, updatePassword, resetPassword, findEmail, signOut }}>
       {children}
     </Ctx.Provider>
   );
