@@ -2,7 +2,7 @@ import { ImageResponse } from "next/og";
 
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
-export const alt = "Insight Restart — 개인회생·파산 AI 실무 플랫폼";
+export const alt = "Insight Restart - 회생파산 AI실무 플랫폼";
 
 const FONTS = {
   pretendardBold: "https://cdn.jsdelivr.net/npm/pretendard@1.3.9/dist/web/static/woff/Pretendard-Bold.woff",
@@ -73,7 +73,7 @@ export default async function Image() {
             Insight Restart
           </div>
           <div style={{ fontFamily: "Pretendard", fontWeight: 700, fontSize: 38, color: "#c8a85f", marginTop: 10 }}>
-            개인회생·파산 AI 실무 플랫폼
+            회생파산 AI실무 플랫폼
           </div>
           <div style={{ fontFamily: "Pretendard", fontWeight: 400, fontSize: 28, color: "#aeb3bc", marginTop: 16 }}>
             상담·신청·보정·변제·면책까지, AI로 한 번에
