@@ -12,9 +12,18 @@ import {
   Sparkles,
   CheckCircle2,
   Plus,
+  Trash2,
 } from "lucide-react";
 import { useStore } from "@/lib/store";
-import { Card, CardHeader, Badge, Button, EmptyState, Stat } from "@/components/ui";
+import { Card, CardHeader, Badge, Button, EmptyState, Stat, Field, Input } from "@/components/ui";
+import type { Creditor, Asset, AssetCategory, IncomeExpense } from "@/lib/types";
+
+const uid = (p: string) => `${p}_${Date.now().toString(36)}_${Math.floor(Math.random() * 1e4).toString(36)}`;
+const numOf = (s: string) => Number(String(s).replace(/[^0-9]/g, "")) || 0;
+const creditorCatLabel: Record<Creditor["category"], string> = {
+  bank: "은행", card: "카드", capital: "캐피탈", loan: "대부·저축", private: "개인·사채", public: "공과금", etc: "기타",
+};
+const assetCats: AssetCategory[] = ["realestate", "vehicle", "deposit", "lease", "insurance", "pension", "security", "receivable", "etc"];
 import { CaseTypeBadge, CaseStatusBadge, StageTimeline, ProgressBar } from "@/components/CaseBits";
 import {
   won,
@@ -116,76 +125,8 @@ export default function CaseDetailPage() {
       </div>
 
       {tab === "개요" && <Overview caseId={c.id} />}
-      {tab === "채권자" && (
-        <Card>
-          <CardHeader title="채권자 목록" desc={`총 ${c.creditors.length}개 채권자 · ${won(totalDebt(c.creditors))}`} />
-          {c.creditors.length === 0 ? (
-            <EmptyState title="등록된 채권자가 없습니다" desc="신용정보 조회서를 바탕으로 채권자를 추가하세요." />
-          ) : (
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-line-soft text-left text-[11px] uppercase tracking-wide text-faint">
-                  <th className="px-5 py-2.5 font-semibold">채권자</th>
-                  <th className="px-3 py-2.5 text-right font-semibold">원금</th>
-                  <th className="px-3 py-2.5 text-right font-semibold">이자·연체</th>
-                  <th className="px-5 py-2.5 text-right font-semibold">합계</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-line-soft">
-                {c.creditors.map((cr) => (
-                  <tr key={cr.id} className="hover:bg-surface-2">
-                    <td className="px-5 py-3">
-                      <div className="flex items-center gap-2">
-                        <span className="font-medium text-ink">{cr.name}</span>
-                        {cr.isDisputed && <Badge tone="warning">다툼</Badge>}
-                      </div>
-                    </td>
-                    <td className="px-3 py-3 text-right tabular-nums text-ink-soft">{won(cr.principal)}</td>
-                    <td className="px-3 py-3 text-right tabular-nums text-muted">{won(cr.interest)}</td>
-                    <td className="px-5 py-3 text-right font-semibold tabular-nums text-ink">{won(cr.principal + cr.interest)}</td>
-                  </tr>
-                ))}
-              </tbody>
-              <tfoot>
-                <tr className="border-t border-line bg-surface-2">
-                  <td className="px-5 py-3 font-semibold text-ink">합계</td>
-                  <td className="px-3 py-3 text-right font-semibold tabular-nums">{won(c.creditors.reduce((s, x) => s + x.principal, 0))}</td>
-                  <td className="px-3 py-3 text-right font-semibold tabular-nums">{won(c.creditors.reduce((s, x) => s + x.interest, 0))}</td>
-                  <td className="px-5 py-3 text-right font-bold tabular-nums text-brand-700">{won(totalDebt(c.creditors))}</td>
-                </tr>
-              </tfoot>
-            </table>
-          )}
-        </Card>
-      )}
-      {tab === "재산" && (
-        <Card>
-          <CardHeader title="재산 목록" desc={`청산가치 ${won(liquidationValue(c.assets))}`} />
-          {c.assets.length === 0 ? (
-            <EmptyState title="등록된 재산이 없습니다" />
-          ) : (
-            <div className="divide-y divide-line-soft">
-              {c.assets.map((a) => (
-                <div key={a.id} className="flex items-center justify-between px-5 py-3.5">
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <Badge tone="muted">{assetCatLabel[a.category]}</Badge>
-                      <span className="text-sm font-medium text-ink">{a.label}</span>
-                    </div>
-                    {a.exemptAmount ? (
-                      <div className="mt-1 text-xs text-success">면제 인정 {won(a.exemptAmount)}</div>
-                    ) : null}
-                  </div>
-                  <div className="text-right">
-                    <div className="text-sm font-semibold tabular-nums text-ink">{won(a.value)}</div>
-                    <div className="text-xs text-muted">청산 {won(Math.max(0, a.value - (a.exemptAmount || 0)))}</div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </Card>
-      )}
+      {tab === "채권자" && <CreditorEditor caseId={c.id} />}
+      {tab === "재산" && <AssetEditor caseId={c.id} />}
       {tab === "변제계획" && <PlanTab caseId={c.id} />}
       {tab === "일정·서류" && (
         <div className="grid gap-4 lg:grid-cols-2">
@@ -268,7 +209,9 @@ function Overview({ caseId }: { caseId: string }) {
   const suit = useMemo(() => assessSuitability(c.income, c.assets, c.creditors, s), [c, s]);
 
   return (
-    <div className="grid gap-4 lg:grid-cols-3">
+    <div className="space-y-4">
+      <IncomeEditor caseId={caseId} />
+      <div className="grid gap-4 lg:grid-cols-3">
       <div className="space-y-4 lg:col-span-2">
         <Card>
           <div className="grid grid-cols-2 divide-x divide-line-soft sm:grid-cols-4">
@@ -340,6 +283,7 @@ function Overview({ caseId }: { caseId: string }) {
         </Card>
 
         {cl_memo(store, c.clientId)}
+      </div>
       </div>
     </div>
   );
@@ -440,5 +384,127 @@ function PlanRow({ label, value }: { label: string; value: string }) {
       <span className="text-muted">{label}</span>
       <span className="font-semibold tabular-nums text-ink">{value}</span>
     </div>
+  );
+}
+
+const selCls = "h-9.5 w-full rounded-lg border border-line bg-surface px-2 text-sm text-ink outline-none focus:border-brand-300 focus:ring-2 focus:ring-brand-100";
+
+function IncomeEditor({ caseId }: { caseId: string }) {
+  const store = useStore();
+  const c = store.caseById(caseId)!;
+  const setIncome = (patch: Partial<IncomeExpense>) => store.updateCase(caseId, { income: { ...c.income, ...patch } });
+  const types: { v: IncomeExpense["incomeType"]; l: string }[] = [
+    { v: "salary", l: "근로" }, { v: "business", l: "사업" }, { v: "freelance", l: "프리랜서" }, { v: "mixed", l: "혼합" },
+  ];
+  return (
+    <Card>
+      <CardHeader title="사건 · 소득 정보 (수정 가능)" desc="값을 바꾸면 변제계획·진단에 즉시 반영됩니다. 자동 저장됩니다." />
+      <div className="grid gap-3 p-5 sm:grid-cols-2 lg:grid-cols-3">
+        <Field label="월 소득(세후, 원)">
+          <Input value={c.income.monthlyIncome ? String(c.income.monthlyIncome) : ""} inputMode="numeric" placeholder="0"
+            onChange={(e) => setIncome({ monthlyIncome: numOf(e.target.value) })} />
+        </Field>
+        <Field label="소득 유형">
+          <select className={selCls} value={c.income.incomeType} onChange={(e) => setIncome({ incomeType: e.target.value as IncomeExpense["incomeType"] })}>
+            {types.map((t) => <option key={t.v} value={t.v}>{t.l}</option>)}
+          </select>
+        </Field>
+        <Field label="부양가족 수(본인 포함 가구원)">
+          <Input value={String(c.income.dependents)} inputMode="numeric" onChange={(e) => setIncome({ dependents: numOf(e.target.value) })} />
+        </Field>
+        <Field label="인정 생계비(원)" hint="미입력 시 기준 중위소득으로 자동 계산">
+          <Input value={c.income.livingCost ? String(c.income.livingCost) : ""} inputMode="numeric" placeholder="자동 계산"
+            onChange={(e) => setIncome({ livingCost: numOf(e.target.value) || undefined })} />
+        </Field>
+        <Field label="관할 법원">
+          <Input value={c.court} onChange={(e) => store.updateCase(caseId, { court: e.target.value })} />
+        </Field>
+        <Field label="사건번호">
+          <Input value={c.caseNo ?? ""} placeholder="예: 2026개회12345" onChange={(e) => store.updateCase(caseId, { caseNo: e.target.value })} />
+        </Field>
+      </div>
+    </Card>
+  );
+}
+
+function CreditorEditor({ caseId }: { caseId: string }) {
+  const store = useStore();
+  const c = store.caseById(caseId)!;
+  const set = (list: Creditor[]) => store.updateCase(caseId, { creditors: list });
+  const upd = (id: string, patch: Partial<Creditor>) => set(c.creditors.map((x) => (x.id === id ? { ...x, ...patch } : x)));
+  const total = c.creditors.reduce((s, x) => s + x.principal + x.interest, 0);
+  const add = () => set([...c.creditors, { id: uid("cr"), name: "", category: "card", principal: 0, interest: 0 }]);
+  return (
+    <Card>
+      <CardHeader
+        title="채권자 목록"
+        desc={`${c.creditors.length}개 · 총 ${won(total)}`}
+        action={<Button size="sm" onClick={add}><Plus size={14} /> 채권자 추가</Button>}
+      />
+      {c.creditors.length === 0 ? (
+        <EmptyState title="등록된 채권자가 없습니다" desc="‘채권자 추가’로 직접 입력하세요. 신용정보조회서·부채증명서를 참고하거나, 거래내역 분석 결과를 활용할 수 있습니다." action={<Button variant="secondary" onClick={add}><Plus size={15} /> 채권자 추가</Button>} />
+      ) : (
+        <div className="space-y-2 p-5">
+          <div className="hidden gap-2 px-1 text-[11px] font-semibold uppercase tracking-wide text-faint sm:grid sm:grid-cols-[1.4fr_.8fr_1fr_1fr_auto]">
+            <span>채권자명</span><span>구분</span><span>원금</span><span>이자·연체</span><span></span>
+          </div>
+          {c.creditors.map((cr) => (
+            <div key={cr.id} className="grid grid-cols-1 gap-2 rounded-lg border border-line-soft p-2 sm:grid-cols-[1.4fr_.8fr_1fr_1fr_auto] sm:border-0 sm:p-0">
+              <Input value={cr.name} placeholder="채권자명" onChange={(e) => upd(cr.id, { name: e.target.value })} />
+              <select className={selCls} value={cr.category} onChange={(e) => upd(cr.id, { category: e.target.value as Creditor["category"] })}>
+                {Object.entries(creditorCatLabel).map(([k, l]) => <option key={k} value={k}>{l}</option>)}
+              </select>
+              <Input value={cr.principal ? String(cr.principal) : ""} inputMode="numeric" placeholder="원금" onChange={(e) => upd(cr.id, { principal: numOf(e.target.value) })} />
+              <Input value={cr.interest ? String(cr.interest) : ""} inputMode="numeric" placeholder="이자·연체" onChange={(e) => upd(cr.id, { interest: numOf(e.target.value) })} />
+              <button onClick={() => set(c.creditors.filter((x) => x.id !== cr.id))} title="삭제" className="flex h-9.5 w-9.5 items-center justify-center rounded-lg text-faint hover:bg-surface-2 hover:text-danger">
+                <Trash2 size={15} />
+              </button>
+            </div>
+          ))}
+          <div className="flex justify-end pt-2 text-[13px]"><span className="text-muted">총 채무 합계</span><span className="ml-2 font-bold tabular-nums text-brand-700">{won(total)}</span></div>
+        </div>
+      )}
+    </Card>
+  );
+}
+
+function AssetEditor({ caseId }: { caseId: string }) {
+  const store = useStore();
+  const c = store.caseById(caseId)!;
+  const set = (list: Asset[]) => store.updateCase(caseId, { assets: list });
+  const upd = (id: string, patch: Partial<Asset>) => set(c.assets.map((x) => (x.id === id ? { ...x, ...patch } : x)));
+  const liq = c.assets.reduce((s, a) => s + Math.max(0, a.value - (a.exemptAmount || 0)), 0);
+  const add = () => set([...c.assets, { id: uid("as"), category: "deposit", label: "", value: 0, exemptAmount: 0 }]);
+  return (
+    <Card>
+      <CardHeader
+        title="재산 목록"
+        desc={`${c.assets.length}개 · 청산가치 ${won(liq)}`}
+        action={<Button size="sm" onClick={add}><Plus size={14} /> 재산 추가</Button>}
+      />
+      {c.assets.length === 0 ? (
+        <EmptyState title="등록된 재산이 없습니다" desc="‘재산 추가’로 부동산·자동차·예금·보증금·보험 등을 직접 입력하세요." action={<Button variant="secondary" onClick={add}><Plus size={15} /> 재산 추가</Button>} />
+      ) : (
+        <div className="space-y-2 p-5">
+          <div className="hidden gap-2 px-1 text-[11px] font-semibold uppercase tracking-wide text-faint sm:grid sm:grid-cols-[.9fr_1.4fr_1fr_1fr_auto]">
+            <span>구분</span><span>내용</span><span>평가액</span><span>면제 인정액</span><span></span>
+          </div>
+          {c.assets.map((a) => (
+            <div key={a.id} className="grid grid-cols-1 gap-2 rounded-lg border border-line-soft p-2 sm:grid-cols-[.9fr_1.4fr_1fr_1fr_auto] sm:border-0 sm:p-0">
+              <select className={selCls} value={a.category} onChange={(e) => upd(a.id, { category: e.target.value as AssetCategory })}>
+                {assetCats.map((k) => <option key={k} value={k}>{assetCatLabel[k]}</option>)}
+              </select>
+              <Input value={a.label} placeholder="예: 임차보증금(전세)" onChange={(e) => upd(a.id, { label: e.target.value })} />
+              <Input value={a.value ? String(a.value) : ""} inputMode="numeric" placeholder="평가액" onChange={(e) => upd(a.id, { value: numOf(e.target.value) })} />
+              <Input value={a.exemptAmount ? String(a.exemptAmount) : ""} inputMode="numeric" placeholder="면제 인정액" onChange={(e) => upd(a.id, { exemptAmount: numOf(e.target.value) })} />
+              <button onClick={() => set(c.assets.filter((x) => x.id !== a.id))} title="삭제" className="flex h-9.5 w-9.5 items-center justify-center rounded-lg text-faint hover:bg-surface-2 hover:text-danger">
+                <Trash2 size={15} />
+              </button>
+            </div>
+          ))}
+          <div className="flex justify-end pt-2 text-[13px]"><span className="text-muted">청산가치 합계</span><span className="ml-2 font-bold tabular-nums text-brand-700">{won(liq)}</span></div>
+        </div>
+      )}
+    </Card>
   );
 }
