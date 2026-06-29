@@ -315,9 +315,45 @@ export default function SettingsPage() {
       {auth.configured && auth.user && (
         <div className="mt-4 grid gap-4 lg:grid-cols-2">
           <AccountCard />
+          <DeleteAccountCard />
         </div>
       )}
     </div>
+  );
+}
+
+function DeleteAccountCard() {
+  const auth = useAuth();
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const onDelete = async () => {
+    if (!confirm("정말 회원 탈퇴할까요?\n계정과 사무소의 모든 데이터(사건·의뢰인·서류 등)가 삭제되며 되돌릴 수 없습니다.")) return;
+    if (!confirm("마지막 확인입니다. 탈퇴 후 같은 이메일로 다시 가입할 수 있습니다.\n탈퇴를 진행할까요?")) return;
+    setBusy(true); setError(null);
+    const { error } = await auth.deleteAccount();
+    if (error) { setError(error); setBusy(false); }
+    // 성공 시 자동으로 로그인 화면으로 이동(signOut)
+  };
+
+  return (
+    <Card className="border-danger/40">
+      <CardHeader title="회원 탈퇴" desc="계정과 사무소 데이터를 삭제합니다. (개인→단체 등 재가입 시 사용)" action={<RotateCcw size={16} className="text-danger" />} />
+      <div className="space-y-3 p-5">
+        <p className="text-[12.5px] leading-relaxed text-muted">
+          탈퇴하면 <b className="text-ink-soft">{auth.user?.email}</b> 계정과 <b className="text-ink-soft">{auth.firmName ?? "내 사무소"}</b>의 모든 데이터가 영구 삭제됩니다.
+          잘못된 유형(예: 개인)으로 가입하셨다면 탈퇴 후 같은 이메일로 다시 가입할 수 있습니다.
+        </p>
+        {error && <div className="rounded-lg bg-danger-bg px-3 py-2 text-[13px] text-danger">{error}</div>}
+        <button
+          onClick={onDelete}
+          disabled={busy}
+          className="inline-flex items-center gap-1.5 rounded-lg border border-danger bg-danger-bg px-3.5 py-2 text-[13px] font-semibold text-danger hover:bg-danger hover:text-white disabled:opacity-50"
+        >
+          {busy ? <Loader2 size={14} className="animate-spin" /> : null} 회원 탈퇴
+        </button>
+      </div>
+    </Card>
   );
 }
 

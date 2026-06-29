@@ -5,7 +5,7 @@ import Link from "next/link";
 import {
   ShieldCheck, Users, BarChart3, Wallet, Lock, ChevronRight, Printer, Loader2,
   UserCheck, Crown, Pause, Play, Gift, CalendarPlus, TrendingUp, Megaphone, ClipboardCheck, Activity,
-  Building2, Check, X, SlidersHorizontal, MessageSquare,
+  Building2, Check, X, SlidersHorizontal, MessageSquare, Trash2,
 } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import { getSupabase } from "@/lib/supabase";
@@ -478,6 +478,15 @@ function MembersTab({ members, reload, setErr }: { members: Member[] | null; rel
                   className={`ml-auto inline-flex h-8 items-center gap-1 rounded-lg border px-2.5 text-[12.5px] font-semibold ${m.super_admin ? "border-brand bg-brand-50 text-brand-700" : "border-line text-muted hover:bg-surface-2"}`}>
                   <Crown size={13} /> {m.super_admin ? "운영자 해제" : "운영자 지정"}
                 </button>
+                {!m.super_admin && (
+                  <button
+                    onClick={() => { if (confirm(`${m.name || m.email} 회원을 강제 탈퇴할까요?\n계정·사무소 데이터가 모두 삭제되며 되돌릴 수 없습니다.`)) act(m.member_id + "del", () => sb().rpc("admin_delete_member", { p_member: m.member_id }).then((r) => ({ error: r.error }))); }}
+                    disabled={busy === m.member_id + "del"}
+                    title="강제 탈퇴"
+                    className="inline-flex h-8 items-center gap-1 rounded-lg border border-danger px-2.5 text-[12.5px] font-semibold text-danger hover:bg-danger-bg disabled:opacity-50">
+                    <Trash2 size={13} /> 탈퇴
+                  </button>
+                )}
                 {busy?.startsWith(m.firm_id) || busy?.startsWith(m.member_id) ? <Loader2 size={14} className="animate-spin text-faint" /> : null}
               </div>
             </div>

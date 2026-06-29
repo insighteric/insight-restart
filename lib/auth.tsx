@@ -23,6 +23,7 @@ interface AuthApi {
   updatePassword: (newPassword: string) => Promise<{ error?: string }>;
   resetPassword: (email: string) => Promise<{ error?: string }>;
   findEmail: (name: string, phone: string) => Promise<{ email?: string | null; error?: string }>;
+  deleteAccount: () => Promise<{ error?: string }>;
   signOut: () => Promise<void>;
 }
 
@@ -196,6 +197,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return error ? { error: error.message } : {};
   };
 
+  const deleteAccount: AuthApi["deleteAccount"] = async () => {
+    const sb = getSupabase();
+    if (!sb) return { error: "Supabase 미설정" };
+    const { error } = await sb.rpc("delete_my_account");
+    if (error) {
+      if (error.message === "transfer_owner_first") return { error: "다른 직원이 있는 사무소입니다. 먼저 다른 직원에게 관리자(대표)를 위임한 뒤 탈퇴하세요." };
+      return { error: error.message };
+    }
+    await signOut(); // 로컬 세션·캐시 정리 후 /login 이동
+    return {};
+  };
+
   const signOut = async () => {
     const sb = getSupabase();
     // signOut이 네트워크로 멈춰도 최대 1.5초 후 진행
@@ -236,7 +249,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const can = (key: string) => isAdmin || permissions.includes(key);
 
   return (
-    <Ctx.Provider value={{ configured, loading, user, firmId, firmName, role, isAdmin, permissions, can, superAdmin, firmStatus, memberName, signIn, signUp, updatePassword, resetPassword, findEmail, signOut }}>
+    <Ctx.Provider value={{ configured, loading, user, firmId, firmName, role, isAdmin, permissions, can, superAdmin, firmStatus, memberName, signIn, signUp, updatePassword, resetPassword, findEmail, deleteAccount, signOut }}>
       {children}
     </Ctx.Provider>
   );
