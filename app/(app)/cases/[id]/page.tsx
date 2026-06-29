@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useAuth } from "@/lib/auth";
@@ -17,6 +17,11 @@ import {
   Trash2,
   Landmark,
   Loader2,
+  Share2,
+  Copy,
+  Check,
+  Download,
+  FileText,
 } from "lucide-react";
 import { useStore } from "@/lib/store";
 import { Card, CardHeader, Badge, Button, EmptyState, Stat, Field, Input } from "@/components/ui";
@@ -136,6 +141,7 @@ export default function CaseDetailPage() {
       {tab === "일정·서류" && (
         <div className="space-y-4">
         <CaseUploads caseId={c.id} />
+        <ShareManager caseId={c.id} />
         <div className="grid gap-4 lg:grid-cols-2">
           <Card>
             <CardHeader title="일정·기한" action={<Link href="/schedule" className="text-[13px] font-semibold text-brand hover:underline">관리</Link>} />
@@ -452,6 +458,81 @@ function IncomeEditor({ caseId }: { caseId: string }) {
             <Input value={c.assignee ?? ""} placeholder="담당 직원 이름" onChange={(e) => store.updateCase(caseId, { assignee: e.target.value })} />
           )}
         </Field>
+      </div>
+    </Card>
+  );
+}
+
+function ShareManager({ caseId }: { caseId: string }) {
+  const { firmId, configured } = useAuth();
+  const [token, setToken] = useState<string | null>(null);
+  const [subs, setSubs] = useState<{ id: number; name: string; path: string; size: number; created_at: string }[]>([]);
+  const [busy, setBusy] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const load = useCallback(async () => {
+    const sb = getSupabase();
+    if (!sb || !firmId) return;
+    const { data } = await sb.from("case_shares").select("token").eq("case_id", caseId).eq("active", true).maybeSingle();
+    setToken((data?.token as string) ?? null);
+    const { data: s } = await sb.from("share_submissions").select("id,name,path,size,created_at").eq("case_id", caseId).order("created_at", { ascending: false });
+    setSubs((s ?? []) as { id: number; name: string; path: string; size: number; created_at: string }[]);
+  }, [firmId, caseId]);
+  useEffect(() => { load(); }, [load]);
+
+  const generate = async () => {
+    setBusy(true);
+    const sb = getSupabase();
+    const { data } = await sb!.from("case_shares").insert({ firm_id: firmId, case_id: caseId }).select("token").single();
+    if (data) setToken(data.token as string);
+    setBusy(false);
+  };
+  const disable = async () => {
+    const sb = getSupabase();
+    await sb!.from("case_shares").update({ active: false }).eq("case_id", caseId).eq("active", true);
+    setToken(null);
+  };
+  const url = token && typeof window !== "undefined" ? `${window.location.origin}/share/${token}` : "";
+  const copy = async () => { await navigator.clipboard.writeText(url); setCopied(true); setTimeout(() => setCopied(false), 1500); };
+  const download = async (p: string, name: string) => {
+    const sb = getSupabase();
+    const { data } = await sb!.storage.from("client-uploads").createSignedUrl(p, 120, { download: name });
+    if (data) window.open(data.signedUrl, "_blank");
+  };
+  const fmtSize = (b: number) => (b < 1024 * 1024 ? `${(b / 1024).toFixed(0)} KB` : `${(b / 1024 / 1024).toFixed(1)} MB`);
+  if (!configured) return null;
+
+  return (
+    <Card>
+      <CardHeader title="의뢰인 공유 포털" desc="링크를 보내면 의뢰인이 로그인 없이 진행상황 확인·서류 제출을 합니다." action={<Share2 size={15} className="text-brand" />} />
+      <div className="space-y-3 p-5">
+        {token ? (
+          <div className="flex flex-wrap items-center gap-2">
+            <input readOnly value={url} onFocus={(e) => e.target.select()} className="h-9 min-w-0 flex-1 rounded-lg border border-line bg-surface-2 px-3 text-[12.5px] text-ink-soft outline-none" />
+            <Button size="sm" variant="secondary" onClick={copy}>{copied ? <Check size={13} /> : <Copy size={13} />} {copied ? "복사됨" : "복사"}</Button>
+            <button onClick={disable} className="inline-flex h-8 items-center gap-1 rounded-lg border border-line px-2.5 text-[12px] font-medium text-muted hover:bg-surface-2 hover:text-danger">링크 중지</button>
+          </div>
+        ) : (
+          <Button onClick={generate} disabled={busy}>{busy ? <Loader2 size={14} className="animate-spin" /> : <Share2 size={14} />} 공유 링크 생성</Button>
+        )}
+        <div>
+          <div className="mb-1.5 text-[12.5px] font-semibold text-ink-soft">의뢰인 제출 서류 {subs.length}건</div>
+          {subs.length === 0 ? (
+            <p className="text-[12.5px] text-faint">아직 제출된 서류가 없습니다.</p>
+          ) : (
+            <ul className="divide-y divide-line-soft">
+              {subs.map((u) => (
+                <li key={u.id} className="flex items-center gap-3 py-2">
+                  <FileText size={15} className="shrink-0 text-muted" />
+                  <div className="min-w-0 flex-1">
+                    <div className="truncate text-[13px] font-medium text-ink">{u.name}</div>
+                    <div className="text-[11px] text-faint">{fmtSize(u.size)} · {u.created_at.slice(0, 10)}</div>
+                  </div>
+                  <button onClick={() => download(u.path, u.name)} title="다운로드" className="flex h-8 w-8 items-center justify-center rounded-lg text-faint hover:bg-surface-2 hover:text-brand-700"><Download size={15} /></button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
       </div>
     </Card>
   );
