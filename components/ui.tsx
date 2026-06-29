@@ -157,16 +157,16 @@ export function Stat({
   tone?: Tone;
 }) {
   return (
-    <div className="px-5 py-4">
-      <div className="text-[13px] text-muted">{label}</div>
+    <div className="px-4 py-3.5 sm:px-5 sm:py-4">
+      <div className="text-[12px] text-muted sm:text-[13px]">{label}</div>
       <div
-        className={`mt-1 text-2xl font-bold tracking-tight tnum ${
+        className={`mt-1 text-xl font-bold tracking-tight tnum sm:text-2xl ${
           tone === "danger" ? "text-danger" : tone === "success" ? "text-success" : "text-ink"
         }`}
       >
         {value}
       </div>
-      {sub && <div className="mt-0.5 text-xs text-faint">{sub}</div>}
+      {sub && <div className="mt-0.5 text-[11px] text-faint sm:text-xs">{sub}</div>}
     </div>
   );
 }

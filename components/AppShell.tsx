@@ -281,7 +281,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           items={anyAdmin ? [{ href: "/admin", label: "관리자 모드", icon: ShieldCheck }, ...nav] : nav}
         />
 
-        <main className="min-w-0 flex-1 px-5 py-6 sm:px-7 lg:px-9">
+        <main className="min-w-0 flex-1 px-3.5 py-5 sm:px-7 sm:py-6 lg:px-9">
           <div className="mx-auto w-full max-w-6xl animate-in">{children}</div>
         </main>
       </div>
