@@ -27,6 +27,21 @@ export async function callerOwnerFirm(req: Request): Promise<OwnerCtx | null> {
   return { userId: user.id, firmId: m.firm_id as string, firmCode: (f?.code as string) ?? null, seats: (f?.seats as number) ?? 1 };
 }
 
+// 요청자가 플랫폼 운영자(super_admin)인지 검증하고 user id 반환.
+export async function callerSuperAdmin(req: Request): Promise<string | null> {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const anon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  const authz = req.headers.get("authorization") || "";
+  if (!url || !anon || !authz) return null;
+  const svc = serviceClient();
+  if (!svc) return null;
+  const userClient = createClient(url, anon, { global: { headers: { Authorization: authz } }, auth: { persistSession: false } });
+  const { data: { user } } = await userClient.auth.getUser();
+  if (!user) return null;
+  const { data: m } = await svc.from("members").select("super_admin").eq("id", user.id).maybeSingle();
+  return m?.super_admin ? user.id : null;
+}
+
 export const STAFF_DOMAIN = "staff.insightrestart.app";
 export const staffEmail = (firmCode: string, usercode: string) =>
   `${firmCode}-${usercode}`.toLowerCase().replace(/[^a-z0-9.\-_]/g, "") + "@" + STAFF_DOMAIN;

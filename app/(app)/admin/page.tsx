@@ -423,6 +423,36 @@ const dday = (until: string | null) => {
 
 function MembersTab({ members, reload, setErr }: { members: Member[] | null; reload: () => Promise<void>; setErr: (s: string | null) => void }) {
   const [busy, setBusy] = useState<string | null>(null);
+  // 비밀번호 수동 설정(메일을 못 받는 가입자 즉시 복구)
+  const [pwFor, setPwFor] = useState<string | null>(null);
+  const [pwValue, setPwValue] = useState("");
+  const [pwDone, setPwDone] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
+
+  const authHeader = async (): Promise<Record<string, string>> => {
+    const sb = getSupabase(); if (!sb) return {};
+    const { data } = await sb.auth.getSession();
+    return data.session?.access_token ? { Authorization: `Bearer ${data.session.access_token}` } : {};
+  };
+  const genPw = () => { setPwValue(`ir${Math.floor(1000 + Math.random() * 9000)}!`); setPwDone(null); };
+  const setPassword = async (memberId: string) => {
+    if (pwValue.length < 6) { setErr("새 비밀번호는 6자 이상이어야 합니다."); return; }
+    setBusy(memberId + "pw"); setErr(null);
+    const res = await fetch("/api/admin/member-password", {
+      method: "POST",
+      headers: { "content-type": "application/json", ...(await authHeader()) },
+      body: JSON.stringify({ memberId, password: pwValue }),
+    });
+    const j = await res.json().catch(() => ({}));
+    if (!j.ok) setErr(j.message ?? "변경에 실패했습니다.");
+    else setPwDone(pwValue);
+    setBusy(null);
+  };
+  const copyPw = async (m: Member) => {
+    const text = `[Insight Restart] ${m.name || m.email} 님 임시 비밀번호 안내\n아이디: ${m.email}\n임시 비밀번호: ${pwDone}\n로그인 후 [설정·구독 > 계정·비밀번호]에서 새 비밀번호로 변경해 주세요.`;
+    try { await navigator.clipboard.writeText(text); setCopied(true); setTimeout(() => setCopied(false), 1600); } catch { /* ignore */ }
+  };
+
   if (!members) return <Loading />;
   if (members.length === 0) return <Placeholder icon={<Users size={28} />} title="가입자가 없습니다" desc="가입자가 생기면 여기에 표시됩니다." />;
 
@@ -486,6 +516,12 @@ function MembersTab({ members, reload, setErr }: { members: Member[] | null; rel
                   className={`inline-flex h-8 items-center gap-1 rounded-lg border px-2.5 text-[12.5px] font-medium ${m.is_free ? "border-brand bg-brand-50 text-brand-700" : "border-line text-muted hover:bg-surface-2"}`}>
                   <Gift size={13} /> 무료
                 </button>
+                <button
+                  onClick={() => { setPwFor(pwFor === m.member_id ? null : m.member_id); setPwValue(""); setPwDone(null); setErr(null); }}
+                  title="비밀번호를 직접 지정합니다(메일을 못 받는 가입자용)"
+                  className={`inline-flex h-8 items-center gap-1 rounded-lg border px-2.5 text-[12.5px] font-medium ${pwFor === m.member_id ? "border-brand bg-brand-50 text-brand-700" : "border-line text-muted hover:bg-surface-2"}`}>
+                  <Lock size={13} /> 비밀번호
+                </button>
                 <button onClick={() => act(m.member_id + "sa", () => sb().rpc("admin_set_super_admin", { p_member: m.member_id, p_val: !m.super_admin }).then((r) => ({ error: r.error })))}
                   disabled={busy === m.member_id + "sa"}
                   className={`ml-auto inline-flex h-8 items-center gap-1 rounded-lg border px-2.5 text-[12.5px] font-semibold ${m.super_admin ? "border-brand bg-brand-50 text-brand-700" : "border-line text-muted hover:bg-surface-2"}`}>
@@ -502,6 +538,38 @@ function MembersTab({ members, reload, setErr }: { members: Member[] | null; rel
                 )}
                 {busy?.startsWith(m.firm_id) || busy?.startsWith(m.member_id) ? <Loader2 size={14} className="animate-spin text-faint" /> : null}
               </div>
+
+              {pwFor === m.member_id && (
+                <div className="mt-3 rounded-lg border border-line bg-surface-2 p-3">
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    <input
+                      value={pwValue}
+                      onChange={(e) => { setPwValue(e.target.value); setPwDone(null); }}
+                      placeholder="새 비밀번호 (6자 이상)"
+                      autoComplete="off"
+                      className="h-8 w-48 rounded-lg border border-line bg-surface px-2.5 font-mono text-[12.5px] text-ink outline-none focus:border-brand-300"
+                    />
+                    <Button size="sm" variant="secondary" onClick={genPw}>생성</Button>
+                    <Button size="sm" onClick={() => setPassword(m.member_id)} disabled={busy === m.member_id + "pw" || pwValue.length < 6}>
+                      {busy === m.member_id + "pw" ? <Loader2 size={13} className="animate-spin" /> : null} 변경
+                    </Button>
+                    {pwDone && (
+                      <Button size="sm" variant="secondary" onClick={() => copyPw(m)}>
+                        {copied ? "복사됨" : "안내문 복사"}
+                      </Button>
+                    )}
+                  </div>
+                  {pwDone ? (
+                    <p className="mt-2 text-[12px] text-success">
+                      변경 완료 — 아이디 <b>{m.email}</b> · 임시 비밀번호 <b className="font-mono">{pwDone}</b> 를 본인에게 전달하세요.
+                    </p>
+                  ) : (
+                    <p className="mt-2 text-[11.5px] text-faint">
+                      재설정 메일을 받지 못하는 가입자에게 임시 비밀번호를 발급합니다. 전달 후 본인이 [설정·구독 &gt; 계정·비밀번호]에서 변경하도록 안내하세요.
+                    </p>
+                  )}
+                </div>
+              )}
             </div>
           </Card>
         );

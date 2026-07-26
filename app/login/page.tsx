@@ -269,13 +269,16 @@ export default function LoginPage() {
               </Button>
 
               {mode === "login" && (
-                <div className="flex items-center justify-center gap-2 pt-1 text-[13px] text-muted">
-                  <button onClick={() => switchMode("findId")} className="hover:text-ink hover:underline">
-                    아이디 찾기
+                <div className="flex items-center justify-center gap-2 pt-1">
+                  <button
+                    onClick={() => switchMode("findId")}
+                    className="inline-flex items-center gap-1.5 rounded-lg border border-line px-3 py-1.5 text-[13px] font-semibold text-ink hover:bg-surface-2">
+                    <Mail size={14} className="text-muted" /> 아이디 찾기
                   </button>
-                  <span className="text-faint">·</span>
-                  <button onClick={() => switchMode("resetPw")} className="hover:text-ink hover:underline">
-                    비밀번호 찾기
+                  <button
+                    onClick={() => switchMode("resetPw")}
+                    className="inline-flex items-center gap-1.5 rounded-lg border border-line px-3 py-1.5 text-[13px] font-semibold text-ink hover:bg-surface-2">
+                    <KeyRound size={14} className="text-muted" /> 비밀번호 찾기
                   </button>
                 </div>
               )}
