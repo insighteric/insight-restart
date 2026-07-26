@@ -140,15 +140,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         clearTimeout(safety);
         setLoading(false);
       });
-    const { data: sub } = sb.auth.onAuthStateChange(async (event, session) => {
+    // 주의: 이 콜백 안에서 Supabase 호출을 await 하면 인증 잠금이 풀리지 않아
+    // 이후 모든 요청(rpc·select)이 영구 대기(데드락)한다. 반드시 즉시 반환하고
+    // 실제 조회는 다음 틱으로 미룬다. (Supabase 공식 권고)
+    const { data: sub } = sb.auth.onAuthStateChange((event, session) => {
       const u = session?.user ?? null;
       setUser(u);
       if (u) applyCache(u.id);
-      await loadFirm(u);
-      if (u) {
-        if (event === "SIGNED_IN") track("login");
-        else if (event === "INITIAL_SESSION") track("visit");
-      }
+      setTimeout(() => {
+        void loadFirm(u);
+        if (u) {
+          if (event === "SIGNED_IN") track("login");
+          else if (event === "INITIAL_SESSION") track("visit");
+        }
+      }, 0);
     });
     return () => {
       clearTimeout(safety);

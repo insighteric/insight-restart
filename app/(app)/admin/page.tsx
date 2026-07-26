@@ -75,19 +75,14 @@ function OperatorConsole() {
     if (!sb) { setErr("로그인이 필요합니다."); setOverview(ZERO); setMembers([]); return; }
     const withTimeout = <T,>(p: Promise<T>, ms = 12000) =>
       Promise.race([p, new Promise<T>((_, rej) => setTimeout(() => rej(new Error("응답 시간 초과")), ms))]);
-    // 조회 전 세션 확보: 만료(임박) 시 미리 갱신해 stale 토큰 요청 방지
-    try {
-      const { data: { session } } = await withTimeout(sb.auth.getSession(), 4000);
-      if (!session || (session.expires_at && session.expires_at * 1000 < Date.now() + 60000)) {
-        await withTimeout(sb.auth.refreshSession(), 6000);
-      }
-    } catch { /* ignore */ }
     const fetchAll = () => Promise.all([sb.rpc("admin_overview"), sb.rpc("admin_list_members")]);
     try {
+      // 조회를 먼저 시도한다. 세션 갱신(refreshSession)이 지연·중단되면
+      // 그것만 기다리다 전체가 타임아웃되므로, 실패했을 때만 갱신 후 재시도한다.
       let [o, m] = await withTimeout(fetchAll());
       if (o.error || m.error) {
-        // 세션 토큰 만료 가능 → 갱신 후 1회 재시도
-        try { await sb.auth.refreshSession(); } catch { /* ignore */ }
+        // 세션 토큰 만료 가능 → 갱신 후 1회 재시도 (갱신 자체에도 타임아웃)
+        try { await withTimeout(sb.auth.refreshSession(), 6000); } catch { /* ignore */ }
         [o, m] = await withTimeout(fetchAll());
       }
       if (o.error) { setErr(o.error.message); setOverview(ZERO); } else setOverview(o.data as Overview);
@@ -358,7 +353,7 @@ function DashboardTab({ overview, members }: { overview: Overview | null; member
           ) : (
             <ul className="divide-y divide-line-soft">
               {expiring.slice(0, 8).map(({ m, d }) => (
-                <li key={m.firm_id} className="flex items-center justify-between px-5 py-2.5">
+                <li key={m.member_id} className="flex items-center justify-between px-5 py-2.5">
                   <div className="min-w-0">
                     <div className="truncate text-[13px] font-medium text-ink">{m.firm_name}</div>
                     <div className="text-[11px] text-faint">{m.name} · {m.plan?.toUpperCase()} · {m.sub_until}</div>
@@ -378,7 +373,7 @@ function DashboardTab({ overview, members }: { overview: Overview | null; member
           ) : (
             <ul className="divide-y divide-line-soft">
               {inactive.slice(0, 8).map(({ m, days }) => (
-                <li key={m.firm_id} className="flex items-center justify-between px-5 py-2.5">
+                <li key={m.member_id} className="flex items-center justify-between px-5 py-2.5">
                   <div className="min-w-0">
                     <div className="truncate text-[13px] font-medium text-ink">{m.firm_name}</div>
                     <div className="text-[11px] text-faint">{m.name} · {m.email}</div>
